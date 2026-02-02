@@ -1,0 +1,339 @@
+# ============================================================================
+# Playbook: SELinux Configuration Management and Validation
+# ============================================================================
+#
+# Description:
+#   This playbook manages SELinux runtime and persistent configuration states
+#   across multiple RHEL/CentOS hosts. It provides safe, controlled SELinux
+#   state management with validation, error handling, and reboot notifications.
+#   The playbook does NOT automatically reboot servers, but provides clear
+#   notifications when a reboot is required for configuration changes to take
+#   full effect.
+#
+# Purpose:
+#   - Standardize SELinux configuration across multiple hosts
+#   - Manage both runtime and persistent SELinux states
+#   - Provide validation and error handling for safe configuration changes
+#   - Generate clear status reports and reboot notifications
+#
+# Features:
+#   - Supports RHEL 7/8/9 and CentOS 7/8/9
+#   - Manages both runtime and persistent SELinux states
+#   - Configuration validation before applying changes
+#   - Comprehensive error handling with rollback capabilities
+#   - Clear reboot notifications (no automatic reboots)
+#   - Detailed status reporting
+#   - Idempotent execution (safe to run multiple times)
+#
+# Usage:
+#   1. Update variables in this playbook (permanent_state, runtime_state)
+#   2. Define target hosts in inventory file
+#   3. Ensure ansible.posix collection is installed: ansible-galaxy collection install ansible.posix
+#   4. Execute: ansible-playbook selinux_config_management.yml -i inventory
+#
+# Author: GCG AAP SSA Team + v3.01 20260217
+#
+# License:
+#   📜 License Type: End User License Agreement (EULA)
+#   🔒 Authorization: Subscription-based License
+#
+# ============================================================================
+
+---
+- name: Configure SELinux State Across Network
+  hosts: all
+  become: true
+  gather_facts: true
+
+  vars:
+    permanent_state: "disabled"              # Target persistent state: enforcing, permissive, disabled
+    runtime_state: "permissive"             # Target runtime state: enforcing, permissive
+    config_path: "/etc/selinux/config"       # SELinux configuration file path
+    supported_distributions:
+      - "RedHat"
+      - "CentOS"
+    supported_major_versions:
+      - "7"
+      - "8"
+      - "9"
+    valid_selinux_states:
+      - "enforcing"
+      - "permissive"
+      - "disabled"
+    reboot_required_msg: |
+      ===========================================================
+      [NOTICE] SELinux persistent configuration has been changed.
+      Server requires a reboot for the new configuration '%s' to take full effect.
+      Please perform a manual reboot during a scheduled maintenance window.
+      ===========================================================
+
+  tasks:
+    # ========================================================================
+    # OS Compatibility Validation
+    # ========================================================================
+    - name: Validate OS compatibility
+      ansible.builtin.assert:
+        that:
+          - ansible_distribution in supported_distributions
+          - ansible_distribution_major_version in supported_major_versions
+        fail_msg: "Unsupported operating system. This playbook is not available for the current OS. Supported: RHEL/CentOS 7/8/9"
+        success_msg: "OS compatibility check passed: {{ ansible_distribution }} {{ ansible_distribution_major_version }}"
+      tags:
+        - validation
+        - always
+
+    - name: Display OS information for debugging
+      ansible.builtin.debug:
+        msg:
+          - "Distribution: {{ ansible_distribution }}"
+          - "Version: {{ ansible_distribution_version }}"
+          - "Major Version: {{ ansible_distribution_major_version }}"
+          - "Architecture: {{ ansible_architecture }}"
+      tags:
+        - validation
+        - debug
+
+    # ========================================================================
+    # Input Parameter Validation
+    # ========================================================================
+    - name: Validate permanent_state variable
+      ansible.builtin.assert:
+        that:
+          - permanent_state is defined
+          - permanent_state in valid_selinux_states
+        fail_msg: "permanent_state must be one of: enforcing, permissive, disabled. Current value: {{ permanent_state }}"
+        success_msg: "Permanent state validated: {{ permanent_state }}"
+      tags:
+        - validation
+        - always
+
+    - name: Validate runtime_state variable
+      ansible.builtin.assert:
+        that:
+          - runtime_state is defined
+          - runtime_state in valid_selinux_states
+        fail_msg: "runtime_state must be one of: enforcing, permissive, disabled. Current value: {{ runtime_state }}"
+        success_msg: "Runtime state validated: {{ runtime_state }}"
+      tags:
+        - validation
+        - always
+
+    - name: Validate config_path variable
+      ansible.builtin.assert:
+        that:
+          - config_path is defined
+          - config_path | length > 0
+        fail_msg: "config_path variable must be defined and non-empty"
+        success_msg: "Configuration file path validated: {{ config_path }}"
+      tags:
+        - validation
+        - always
+
+    - name: Display validated parameters for debugging
+      ansible.builtin.debug:
+        msg:
+          - "Permanent State: {{ permanent_state }}"
+          - "Runtime State: {{ runtime_state }}"
+          - "Config Path: {{ config_path }}"
+      tags:
+        - validation
+        - debug
+
+    # ========================================================================
+    # SELinux Availability and Status Check
+    # ========================================================================
+    - name: Verify SELinux is available on the system
+      ansible.builtin.assert:
+        that:
+          - ansible_facts.selinux.status is defined
+          - ansible_facts.selinux.status in ['enabled', 'disabled']
+        fail_msg: "SELinux environment cannot be identified: {{ ansible_facts.selinux | default('Not detected') }}"
+        success_msg: "SELinux status detected: {{ ansible_facts.selinux.status }}"
+      tags:
+        - precheck
+        - always
+
+    - name: Display current SELinux status for debugging
+      ansible.builtin.debug:
+        msg:
+          - "SELinux Status: {{ ansible_facts.selinux.status | default('N/A') }}"
+          - "Current Mode: {{ ansible_facts.selinux.mode | default('N/A') }}"
+          - "Policy Type: {{ ansible_facts.selinux.policy | default('N/A') }}"
+      tags:
+        - precheck
+        - debug
+
+    # ========================================================================
+    # Initialize Result Variables
+    # ========================================================================
+    - name: Initialize runtime change result variable
+      ansible.builtin.set_fact:
+        runtime_change_result:
+          changed: false
+
+    - name: Initialize config change result variable
+      ansible.builtin.set_fact:
+        config_change_result:
+          changed: false
+
+    # ========================================================================
+    # SELinux Configuration Management
+    # ========================================================================
+    - name: Manage SELinux configuration
+      block:
+        - name: Check current persistent configuration
+          ansible.builtin.stat:
+            path: "{{ config_path }}"
+          register: config_file_stat
+
+        - name: Read current persistent configuration for debugging
+          ansible.builtin.slurp:
+            src: "{{ config_path }}"
+          register: current_config_content
+          when: config_file_stat.stat.exists | default(false)
+
+        - name: Display current configuration for debugging
+          ansible.builtin.debug:
+            msg: "Current SELINUX setting: {{ current_config_content.content | b64decode | regex_search('^SELINUX=(.*)$', multiline=True) | default('Not found') }}"
+          when: config_file_stat.stat.exists | default(false)
+
+        - name: Set SELinux runtime state
+          ansible.posix.selinux:
+            state: "{{ runtime_state }}"
+            policy: "{{ ansible_facts.selinux.policy | default('targeted') }}"
+          when:
+            - ansible_facts.selinux.status == 'enabled'
+            - ansible_facts.selinux.mode != runtime_state
+          register: runtime_change_result
+          tags:
+            - runtime
+
+        - name: Display runtime state change result for debugging
+          ansible.builtin.debug:
+            msg:
+              - "Runtime state changed: {{ runtime_change_result.changed | default(false) }}"
+              - "Target runtime state: {{ runtime_state }}"
+          when: runtime_change_result.changed | default(false)
+          tags:
+            - runtime
+            - debug
+
+        - name: Update SELinux persistent configuration
+          ansible.builtin.lineinfile:
+            path: "{{ config_path }}"
+            regexp: '^SELINUX='
+            line: 'SELINUX={{ permanent_state }}'
+            backup: true
+            validate: '/usr/sbin/sestatus -v %s'
+          register: config_change_result
+          tags:
+            - config
+
+        - name: Display config change result for debugging
+          ansible.builtin.debug:
+            msg:
+              - "Config file changed: {{ config_change_result.changed | default(false) }}"
+              - "Backup file: {{ config_change_result.backup_file | default('No backup created') }}"
+          when: config_change_result.changed | default(false)
+          tags:
+            - config
+            - debug
+
+        - name: Verify configuration file after update
+          ansible.builtin.stat:
+            path: "{{ config_path }}"
+          register: config_file_after_stat
+
+        - name: Validate configuration file exists and is readable
+          ansible.builtin.assert:
+            that:
+              - config_file_after_stat.stat.exists | default(false)
+              - config_file_after_stat.stat.isreg | default(false)
+            fail_msg: "Configuration file was not created or is not a regular file: {{ config_path }}"
+            success_msg: "Configuration file verified successfully: {{ config_path }}"
+
+      rescue:
+        - name: Handle SELinux configuration failure
+          ansible.builtin.debug:
+            msg: "❌ Failed to configure SELinux. Error: {{ ansible_failed_result.msg | default('Unknown error') }}"
+
+        - name: Attempt to restore configuration from backup if available
+          ansible.builtin.copy:
+            src: "{{ config_change_result.backup_file }}"
+            dest: "{{ config_path }}"
+            remote_src: true
+            backup: false
+          when:
+            - config_change_result.backup_file is defined
+            - config_change_result.backup_file | length > 0
+          register: restore_result
+          ignore_errors: true
+
+        - name: Display rollback status
+          ansible.builtin.debug:
+            msg: "🔄 Rollback attempted from backup: {{ config_change_result.backup_file | default('No backup available') }}"
+          when:
+            - config_change_result.backup_file is defined
+            - config_change_result.backup_file | length > 0
+
+        - name: Fail playbook on configuration error
+          ansible.builtin.fail:
+            msg: "SELinux configuration failed for {{ inventory_hostname }}. Please check the error messages above."
+
+      always:
+        - name: Refresh SELinux facts after configuration
+          ansible.builtin.setup:
+            gather_subset:
+              - '!all'
+              - selinux
+
+        - name: Display final SELinux status
+          ansible.builtin.debug:
+            msg:
+              - "Final SELinux Status: {{ ansible_facts.selinux.status | default('N/A') }}"
+              - "Final SELinux Mode: {{ ansible_facts.selinux.mode | default('N/A') }}"
+
+    # ========================================================================
+    # Reboot Notification
+    # ========================================================================
+    - name: Display reboot notification if configuration changed
+      ansible.builtin.debug:
+        msg: "{{ reboot_required_msg | format(permanent_state) }}"
+      when: config_change_result.changed | default(false)
+      tags:
+        - notification
+        - always
+
+    # ========================================================================
+    # Status Report
+    # ========================================================================
+    - name: Output final SELinux status report
+      ansible.builtin.debug:
+        msg:
+          - "================= SELinux Status Report =================="
+          - "Host: {{ inventory_hostname }}"
+          - "Timestamp: {{ ansible_date_time.iso8601 }}"
+          - ""
+          - "Runtime Status:"
+          - "  - Current Mode: {{ ansible_facts.selinux.mode | default('disabled') }}"
+          - "  - Was changed in this run: {{ 'Yes' if runtime_change_result.changed | default(false) else 'No' }}"
+          - ""
+          - "Persistent Status (in {{ config_path }}):"
+          - "  - Configured Mode: {{ permanent_state }}"
+          - "  - Was changed in this run: {{ 'Yes' if config_change_result.changed | default(false) else 'No' }}"
+          - "  - Reboot Required: {{ 'Yes' if config_change_result.changed | default(false) else 'No' }}"
+          - "=========================================================="
+      tags:
+        - report
+        - always
+
+    # ========================================================================
+    # Summary and Completion
+    # ========================================================================
+    - name: Display completion summary
+      ansible.builtin.debug:
+        msg: "SELinux configuration management completed for {{ inventory_hostname }}"
+      tags:
+        - summary
+        - always
+
