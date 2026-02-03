@@ -1,0 +1,116 @@
+# ============================================================================
+# Task File: YUM Repository Client Configuration Tasks (Red Hat Best Practice)
+# ============================================================================
+#
+# Description:
+#   This task file contains all tasks required to configure client hosts
+#   to use the internal YUM repository. It creates repository configuration
+#   files for RHEL 8/9. This implementation follows Red Hat's official best
+#   practices and uses dynamic server discovery.
+#
+# Key Feature:
+#   - Uses hostvars[groups['server'][0]]['ansible_default_ipv4']['address'] to
+#     dynamically discover the repository server IP address from Ansible facts,
+#     avoiding hardcoded IP addresses and DNS resolution issues
+#
+# Author: GCG AAP SSA Team + v3.01 20260217
+#
+# ============================================================================
+
+---
+# ========================================================================
+# Configure YUM Repositories for RHEL 8/9
+# ========================================================================
+# Create YUM repository configuration files pointing to the internal
+# repository server. This uses dynamic server discovery via Ansible facts to
+# get the server IP address, avoiding DNS resolution issues.
+- name: Add repositories for release >= RHEL-8.0
+  ansible.builtin.yum_repository:
+    file: "{{ repoName }}"
+    name: "{{ item.name }}"
+    baseurl: "{{ item.baseurl }}"
+    description: "{{ item.description | default('Remote Repository') }}"
+    enabled: true
+    gpgcheck: false
+  loop:
+    # BaseOS repository - contains core OS packages
+    - name: "remote-repo-baseos-{{ release }}"
+      baseurl: "{{ protocol }}://{{ hostvars[groups['server'][0]]['ansible_default_ipv4']['address'] }}/{{ relativePath }}/BaseOS"
+      description: "Remote Repository BaseOS {{ release }}"
+    # AppStream repository - contains application packages
+    - name: "remote-repo-appstream-{{ release }}"
+      baseurl: "{{ protocol }}://{{ hostvars[groups['server'][0]]['ansible_default_ipv4']['address'] }}/{{ relativePath }}/AppStream"
+      description: "Remote Repository AppStream {{ release }}"
+  register: repo_config_result
+  tags:
+    - repo
+    - always
+
+- name: Display repository configuration result for debugging
+  ansible.builtin.debug:
+    msg:
+      - "Repositories configured: {{ repo_config_result.results | length }}"
+      - "Repository file: /etc/yum.repos.d/{{ repoName }}.repo"
+      - "Repository server hostname: {{ groups['server'][0] }}"
+      - "Repository server IP: {{ hostvars[groups['server'][0]]['ansible_default_ipv4']['address'] }}"
+      - "Protocol: {{ protocol }}"
+  tags:
+    - repo
+    - debug
+
+# ========================================================================
+# Clean YUM Cache
+# ========================================================================
+# Clean the YUM cache to ensure clients use the new repository configuration
+- name: Clean YUM cache
+  ansible.builtin.command:
+    cmd: yum clean all
+  register: yum_clean_result
+  changed_when: yum_clean_result.rc == 0
+  failed_when: yum_clean_result.rc != 0
+  tags:
+    - verification
+    - always
+
+- name: Display YUM cache clean result for debugging
+  ansible.builtin.debug:
+    msg: "YUM cache cleaned successfully"
+  when: yum_clean_result.rc == 0
+  tags:
+    - verification
+    - debug
+
+# ========================================================================
+# Verify Repository Accessibility
+# ========================================================================
+# Verify that the repository is accessible and properly configured
+- name: Verify repository accessibility
+  ansible.builtin.command:
+    cmd: yum repolist enabled
+  register: repo_list_result
+  changed_when: false
+  failed_when: repo_list_result.rc != 0
+  tags:
+    - verification
+    - always
+
+- name: Display repository list for debugging
+  ansible.builtin.debug:
+    msg: "{{ repo_list_result.stdout_lines }}"
+  when: repo_list_result.rc == 0
+  tags:
+    - verification
+    - debug
+
+- name: Display completion summary
+  ansible.builtin.debug:
+    msg:
+      - "YUM repository client configuration completed"
+      - "Repository file: /etc/yum.repos.d/{{ repoName }}.repo"
+      - "Repository server hostname: {{ groups['server'][0] }}"
+      - "Repository server IP: {{ hostvars[groups['server'][0]]['ansible_default_ipv4']['address'] }}"
+      - "Protocol: {{ protocol }}"
+      - "Release: {{ release }}"
+  tags:
+    - summary
+    - always
