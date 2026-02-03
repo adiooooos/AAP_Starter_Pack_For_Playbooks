@@ -1,0 +1,148 @@
+# ============================================================================
+# Playbook: Automated YUM Repository Deployment (Red Hat Best Practice)
+# ============================================================================
+#
+# Description:
+#   This playbook automates the deployment of an internal YUM/DNF repository
+#   server and configures all client hosts to use it. This is based on Red Hat's
+#   official best practice implementation, providing a modular and maintainable
+#   solution for offline/air-gapped environments.
+#
+# Purpose:
+#   - Automate internal YUM repository server setup from ISO images
+#   - Configure multiple client hosts to use the internal repository
+#   - Support offline/air-gapped environments
+#   - Reduce manual configuration effort across large infrastructures
+#
+# Features:
+#   - Supports RHEL 8/9 only (RHEL 7 is not supported)
+#   - Multiple protocol support: HTTP, HTTPS, FTP
+#   - ISO image mounting and file synchronization
+#   - Automatic SELinux context configuration
+#   - Dynamic server discovery (no hardcoded IPs)
+#   - Modular design with separate server and client tasks
+#
+# Usage:
+#   1. Prepare RHEL ISO image on the repository server
+#   2. Update variables in this playbook (isoPath, release, etc.)
+#   3. Configure inventory file with server and client groups
+#   4. Execute: ansible-playbook yum_repo_deployment.yml -i inventory
+#
+# Author: GCG AAP SSA Team + v3.01 20260217
+#
+# License:
+#   📜 License Type: End User License Agreement (EULA)
+#   🔒 Authorization: Subscription-based License
+#
+# ============================================================================
+
+---
+# ============================================================================
+# Play 1: Setup Remote YUM Repository Server
+# ============================================================================
+# This play configures the repository server by mounting the ISO, copying
+# repository files, and configuring the web/FTP service.
+- name: Setup the remote yum repo server
+  become: yes
+  hosts: server
+  gather_facts: true
+
+  vars:
+    protocol: http                    # Protocol: http, https, or ftp
+    source: iso                       # Source type: iso
+    documentRoot: /var/www/html       # Web server document root directory (no trailing slash)
+
+  tasks:
+    # ========================================================================
+    # OS Compatibility Validation
+    # ========================================================================
+    - name: Validate OS compatibility (RHEL 8/9 only)
+      ansible.builtin.assert:
+        that:
+          - ansible_distribution == 'RedHat'
+          - ansible_distribution_major_version in ['8', '9']
+        fail_msg: "Unsupported operating system. This playbook is only available for RHEL 8/9. Current OS: {{ ansible_distribution }} {{ ansible_distribution_major_version }}"
+        success_msg: "OS compatibility check passed: {{ ansible_distribution }} {{ ansible_distribution_major_version }}"
+      tags:
+        - validation
+        - always
+
+    - name: Display OS information for debugging
+      ansible.builtin.debug:
+        msg:
+          - "Distribution: {{ ansible_distribution }}"
+          - "Version: {{ ansible_distribution_version }}"
+          - "Major Version: {{ ansible_distribution_major_version }}"
+          - "Architecture: {{ ansible_architecture }}"
+      tags:
+        - validation
+        - debug
+
+    # ========================================================================
+    # Include Server Tasks
+    # ========================================================================
+    # Include the server deployment tasks file which contains all the logic
+    # for mounting ISO, copying files, and configuring services.
+    - name: Include server deployment tasks
+      ansible.builtin.include_tasks: yum_repo_server_tasks.yml
+      vars:
+        isoPath: /data/rhel-8.10-x86_64-dvd.iso                    # Path to ISO file on server
+        relativePath: RHEL-8.10/RedHatEnterpriseLinux/x86_64      # Relative path in document root
+        mountPath: /mnt/RHEL-8.10/RedHatEnterpriseLinux/x86_64    # ISO mount point
+      tags:
+        - server
+        - always
+
+# ============================================================================
+# Play 2: Setup Remote YUM Repository Clients
+# ============================================================================
+# This play configures all client hosts to use the internal repository by
+# creating YUM repository configuration files.
+- name: Setup the remote yum repo client
+  become: yes
+  hosts: client
+  gather_facts: true
+
+  vars:
+    protocol: http                    # Protocol: http, https, or ftp (must match server)
+
+  tasks:
+    # ========================================================================
+    # OS Compatibility Validation
+    # ========================================================================
+    - name: Validate OS compatibility (RHEL 8/9 only)
+      ansible.builtin.assert:
+        that:
+          - ansible_distribution == 'RedHat'
+          - ansible_distribution_major_version in ['8', '9']
+        fail_msg: "Unsupported operating system. This playbook is only available for RHEL 8/9. Current OS: {{ ansible_distribution }} {{ ansible_distribution_major_version }}"
+        success_msg: "OS compatibility check passed: {{ ansible_distribution }} {{ ansible_distribution_major_version }}"
+      tags:
+        - validation
+        - always
+
+    - name: Display OS information for debugging
+      ansible.builtin.debug:
+        msg:
+          - "Distribution: {{ ansible_distribution }}"
+          - "Version: {{ ansible_distribution_version }}"
+          - "Major Version: {{ ansible_distribution_major_version }}"
+          - "Architecture: {{ ansible_architecture }}"
+      tags:
+        - validation
+        - debug
+
+    # ========================================================================
+    # Include Client Tasks
+    # ========================================================================
+    # Include the client configuration tasks file which creates YUM repository
+    # configuration files pointing to the internal repository server.
+    - name: Include client configuration tasks
+      ansible.builtin.include_tasks: yum_repo_client_tasks.yml
+      vars:
+        release: 8.10                                                  # RHEL release version
+        relativePath: RHEL-8.10/RedHatEnterpriseLinux/x86_64         # Repository relative path
+        repoName: remote_repo_{{ release }}-{{ protocol }}            # Repository file name
+      tags:
+        - client
+        - always
