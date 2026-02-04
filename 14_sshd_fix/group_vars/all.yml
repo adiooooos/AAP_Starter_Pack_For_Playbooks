@@ -1,0 +1,40 @@
+---
+# =============================================================================
+# Global variables for SSH Connection Troubleshooting & Auto‑Remediation
+# =============================================================================
+
+# Target host configuration
+target_hostname: "Test-RHEL-7.9-2"
+target_short_name: "Test-RHEL-7.9-2"
+
+# DNS and hosts file configuration
+hosts_file_path: "/etc/hosts"
+dns_resolution_targets:
+  - "{{ target_hostname }}"
+  - "redhat.com"
+  - "8.8.8.8"
+
+# SSH service configuration
+ssh_service_name: "sshd"
+ssh_port: 22
+ssh_host_keys_path: "/etc/ssh"
+
+# Reporting and logging configuration
+report_base_dir: "/tmp"
+report_prefix: "ssh_network_fix"
+log_retention_days: 7
+
+# Monitoring configuration
+monitor_interval_seconds: 300
+monitor_script_name: "monitor_ssh_network.sh"
+
+# Supported operating systems (RHEL/CentOS 7/8/9)
+supported_os_families:
+  - "RedHat"
+  - "CentOS"
+supported_os_versions:
+  - "7"
+  - "8"
+  - "9"
+
+
