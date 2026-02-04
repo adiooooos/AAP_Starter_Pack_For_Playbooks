@@ -1,4 +1,4 @@
-## Scenario 15 – NFS Server Deployment and Configuration
+## NFS Server Deployment and Configuration
 
 This playbook is part of the AAP Starter Pack and demonstrates how to deploy a simple, production‑ready NFS server on RHEL/CentOS 7/8/9 using Ansible Automation Platform best practices.  
 It focuses on clarity and safety: minimal variables, strong input validation, idempotent tasks, and explicit debug output after each functional step.
@@ -87,5 +87,6 @@ On a successful run, you should observe:
 - Debug output showing the active exports from `exportfs -rav`.
 
 If there is a failure while updating the exports configuration, the playbook uses a `block/rescue` structure to provide clear guidance for manual rollback using the backup file created by the `copy` module.
+
 
 
