@@ -4,6 +4,9 @@
 
 This Ansible Role-based solution provides automated NetworkManager configuration management across multiple Linux hosts. It enables declarative network configuration management through a centralized control panel, supporting view, add, modify, control, and delete operations with precise tag-based execution control.
 
+## test-results
+<img width="1412" height="1222" alt="image" src="https://github.com/user-attachments/assets/3700ade6-e727-4f5c-9d13-f47b7b0cb190" />
+
 ## Features
 
 - **Role-Based Architecture**: Modular, reusable, and maintainable design
@@ -366,3 +369,4 @@ GCG AAP SSA Team + v3.01 20260217
 
 📜 License Type: End User License Agreement (EULA)
 🔒 Authorization: Subscription-based License
+
