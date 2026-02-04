@@ -1,0 +1,47 @@
+# ============================================================================
+# Role Default Variables: MariaDB Server Role
+# ============================================================================
+#
+# Description:
+#   Default variables for the MariaDB server role. These variables define
+#   passwords, user names, database names, and other configuration parameters.
+#
+# Security Warning:
+#   In production environments, use Ansible Vault to encrypt passwords!
+#   Do not store plaintext passwords in this file.
+#
+# Author: GCG AAP SSA Team + v3.01 20260217
+#
+# License:
+#   📜 License Type: End User License Agreement (EULA)
+#   🔒 Authorization: Subscription-based License
+#
+# ============================================================================
+
+---
+# Package management
+mariadb_packages:
+  - mariadb-server
+  - python3-PyMySQL
+
+# Service management
+mariadb_service_name: mariadb
+
+# Root password (MUST be changed in production, use Ansible Vault!)
+mariadb_root_password: "YourSecureRootPassword"
+
+# General user configuration
+mariadb_general_user_name: "webapp_user"
+mariadb_general_user_password: "AnotherSecurePassword"
+
+# Database configuration
+mariadb_database_name: "webapp_db"
+
+# Backup configuration
+mariadb_backup_path: "/root"
+mariadb_backup_filename: "{{ mariadb_database_name }}_initial_backup.sql"
+
+# Firewall management
+mariadb_manage_firewall: true
+mariadb_firewall_service: mysql
+

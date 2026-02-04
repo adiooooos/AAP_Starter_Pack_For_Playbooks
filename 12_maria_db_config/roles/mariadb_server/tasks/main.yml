@@ -1,0 +1,369 @@
+# ============================================================================
+# Role Tasks: MariaDB Server Role
+# ============================================================================
+#
+# Description:
+#   Core tasks for deploying and configuring MariaDB server. Includes
+#   package installation, service management, security hardening, user
+#   and database configuration, initial backup, and firewall configuration.
+#
+# Author: GCG AAP SSA Team + v3.01 20260217
+#
+# License:
+#   📜 License Type: End User License Agreement (EULA)
+#   🔒 Authorization: Subscription-based License
+#
+# ============================================================================
+
+---
+# ========================================================================
+# 1. Pre-flight Checks
+# ========================================================================
+- name: Validate MariaDB configuration parameters
+  ansible.builtin.assert:
+    that:
+      - mariadb_root_password is defined
+      - mariadb_root_password | length > 0
+      - mariadb_general_user_name is defined
+      - mariadb_general_user_name | length > 0
+      - mariadb_general_user_password is defined
+      - mariadb_general_user_password | length > 0
+      - mariadb_database_name is defined
+      - mariadb_database_name | length > 0
+    fail_msg: "All MariaDB configuration parameters must be defined and non-empty"
+    success_msg: "MariaDB configuration parameters validated"
+  tags: [validation, always]
+
+- name: Display configuration summary for debugging (passwords hidden)
+  ansible.builtin.debug:
+    msg:
+      - "Root password: [HIDDEN]"
+      - "General user: {{ mariadb_general_user_name }}"
+      - "General user password: [HIDDEN]"
+      - "Database name: {{ mariadb_database_name }}"
+      - "Backup path: {{ mariadb_backup_path }}/{{ mariadb_backup_filename }}"
+  tags: [debug, always]
+
+# ========================================================================
+# 2. Package Installation
+# ========================================================================
+- name: Install MariaDB server and PyMySQL packages
+  block:
+    - name: Install MariaDB packages
+      ansible.builtin.yum:
+        name: "{{ mariadb_packages }}"
+        state: present
+      register: package_install_result
+      tags: [installation, always]
+
+    - name: Display package installation result for debugging
+      ansible.builtin.debug:
+        msg:
+          - "Packages installed: {{ mariadb_packages | join(', ') }}"
+          - "Installation changed: {{ package_install_result.changed }}"
+      tags: [debug, always]
+
+  rescue:
+    - name: Handle package installation errors
+      ansible.builtin.debug:
+        msg:
+          - "⚠️ Warning: Error occurred while installing MariaDB packages"
+          - "Please check repository configuration and network connectivity"
+      tags: [error, always]
+
+# ========================================================================
+# 3. Service Management
+# ========================================================================
+- name: Ensure MariaDB service is started and enabled
+  block:
+    - name: Start and enable MariaDB service
+      ansible.builtin.service:
+        name: "{{ mariadb_service_name }}"
+        state: started
+        enabled: true
+      register: service_result
+      tags: [service, always]
+
+    - name: Display service status for debugging
+      ansible.builtin.debug:
+        msg:
+          - "Service: {{ mariadb_service_name }}"
+          - "Service state: {{ service_result.state | default('N/A') }}"
+          - "Service enabled: {{ service_result.enabled | default('N/A') }}"
+      tags: [debug, always]
+
+  rescue:
+    - name: Handle service management errors
+      ansible.builtin.debug:
+        msg:
+          - "⚠️ Warning: Error occurred while managing MariaDB service"
+          - "Please check service status and logs"
+      tags: [error, always]
+
+# ========================================================================
+# 4. Security Hardening
+# ========================================================================
+- name: Update MariaDB root user passwords
+  block:
+    - name: Set root password for all root@host variants
+      community.mysql.mysql_user:
+        name: root
+        host: "{{ item }}"
+        password: "{{ mariadb_root_password }}"
+        login_unix_socket: /var/lib/mysql/mysql.sock
+      loop:
+        - "localhost"
+        - "127.0.0.1"
+        - "::1"
+        - "{{ ansible_hostname }}"
+      no_log: true
+      register: root_password_result
+      tags: [security, always]
+
+    - name: Display root password update result for debugging
+      ansible.builtin.debug:
+        msg:
+          - "Root password updated for {{ root_password_result.results | length }} hosts"
+      tags: [debug, always]
+
+  rescue:
+    - name: Handle root password update errors
+      ansible.builtin.debug:
+        msg:
+          - "⚠️ Warning: Error occurred while updating root password"
+          - "Please check MariaDB service status and socket path"
+      tags: [error, always]
+
+- name: Create /root/.my.cnf file for passwordless login
+  block:
+    - name: Create .my.cnf file
+      ansible.builtin.template:
+        dest: /root/.my.cnf
+        content: |
+          [client]
+          user=root
+          password={{ mariadb_root_password }}
+        owner: root
+        group: root
+        mode: '0600'
+      no_log: true
+      register: mycnf_result
+      tags: [security, always]
+
+    - name: Display .my.cnf creation result for debugging
+      ansible.builtin.debug:
+        msg:
+          - ".my.cnf file created: {{ mycnf_result.changed }}"
+      tags: [debug, always]
+
+  rescue:
+    - name: Handle .my.cnf creation errors
+      ansible.builtin.debug:
+        msg:
+          - "⚠️ Warning: Error occurred while creating .my.cnf file"
+          - "Please check file permissions and path"
+      tags: [error, always]
+
+- name: Remove anonymous user accounts
+  block:
+    - name: Delete anonymous users
+      community.mysql.mysql_user:
+        name: ''
+        host_all: yes
+        state: absent
+      register: anonymous_user_result
+      tags: [security, always]
+
+    - name: Display anonymous user removal result for debugging
+      ansible.builtin.debug:
+        msg:
+          - "Anonymous users removed: {{ anonymous_user_result.changed }}"
+      tags: [debug, always]
+
+  rescue:
+    - name: Handle anonymous user removal errors
+      ansible.builtin.debug:
+        msg:
+          - "⚠️ Warning: Error occurred while removing anonymous users"
+      tags: [error, always]
+
+- name: Remove test database
+  block:
+    - name: Delete test database
+      community.mysql.mysql_db:
+        name: test
+        state: absent
+      register: test_db_result
+      tags: [security, always]
+
+    - name: Display test database removal result for debugging
+      ansible.builtin.debug:
+        msg:
+          - "Test database removed: {{ test_db_result.changed }}"
+      tags: [debug, always]
+
+  rescue:
+    - name: Handle test database removal errors
+      ansible.builtin.debug:
+        msg:
+          - "⚠️ Warning: Error occurred while removing test database"
+      tags: [error, always]
+
+# ========================================================================
+# 5. Database and User Configuration
+# ========================================================================
+- name: Create database
+  block:
+    - name: Create new database
+      community.mysql.mysql_db:
+        name: "{{ mariadb_database_name }}"
+        state: present
+      register: db_create_result
+      tags: [database, always]
+
+    - name: Display database creation result for debugging
+      ansible.builtin.debug:
+        msg:
+          - "Database '{{ mariadb_database_name }}' created: {{ db_create_result.changed }}"
+      tags: [debug, always]
+
+  rescue:
+    - name: Handle database creation errors
+      ansible.builtin.debug:
+        msg:
+          - "⚠️ Warning: Error occurred while creating database"
+          - "Database may already exist"
+      tags: [error, always]
+
+- name: Create general database user
+  block:
+    - name: Create general user
+      community.mysql.mysql_user:
+        name: "{{ mariadb_general_user_name }}"
+        password: "{{ mariadb_general_user_password }}"
+        host: "localhost"
+        state: present
+      no_log: true
+      register: user_create_result
+      tags: [user, always]
+
+    - name: Display user creation result for debugging
+      ansible.builtin.debug:
+        msg:
+          - "User '{{ mariadb_general_user_name }}' created: {{ user_create_result.changed }}"
+      tags: [debug, always]
+
+  rescue:
+    - name: Handle user creation errors
+      ansible.builtin.debug:
+        msg:
+          - "⚠️ Warning: Error occurred while creating user"
+          - "User may already exist"
+      tags: [error, always]
+
+- name: Grant database privileges to general user
+  block:
+    - name: Grant privileges to general user
+      community.mysql.mysql_user:
+        name: "{{ mariadb_general_user_name }}"
+        priv: "{{ mariadb_database_name }}.*:ALL"
+        host: "localhost"
+        state: present
+      register: privilege_result
+      tags: [user, always]
+
+    - name: Display privilege grant result for debugging
+      ansible.builtin.debug:
+        msg:
+          - "Privileges granted to '{{ mariadb_general_user_name }}': {{ privilege_result.changed }}"
+      tags: [debug, always]
+
+  rescue:
+    - name: Handle privilege grant errors
+      ansible.builtin.debug:
+        msg:
+          - "⚠️ Warning: Error occurred while granting privileges"
+      tags: [error, always]
+
+# ========================================================================
+# 6. Initial Backup
+# ========================================================================
+- name: Create initial database backup
+  block:
+    - name: Create backup directory if it doesn't exist
+      ansible.builtin.file:
+        path: "{{ mariadb_backup_path }}"
+        state: directory
+        owner: root
+        group: root
+        mode: '0700'
+      tags: [backup, always]
+
+    - name: Dump database to backup file
+      community.mysql.mysql_db:
+        name: "{{ mariadb_database_name }}"
+        state: dump
+        target: "{{ mariadb_backup_path }}/{{ mariadb_backup_filename }}"
+      register: backup_result
+      tags: [backup, always]
+
+    - name: Display backup result for debugging
+      ansible.builtin.debug:
+        msg:
+          - "Backup created: {{ mariadb_backup_path }}/{{ mariadb_backup_filename }}"
+          - "Backup changed: {{ backup_result.changed }}"
+      tags: [debug, always]
+
+    - name: Verify backup file exists
+      ansible.builtin.stat:
+        path: "{{ mariadb_backup_path }}/{{ mariadb_backup_filename }}"
+      register: backup_file_stat
+      tags: [backup, always]
+
+    - name: Display backup file information
+      ansible.builtin.debug:
+        msg:
+          - "Backup file exists: {{ backup_file_stat.stat.exists }}"
+          - "Backup file size: {{ backup_file_stat.stat.size | default(0) }} bytes"
+      when: backup_file_stat.stat.exists
+      tags: [debug, always]
+
+  rescue:
+    - name: Handle backup errors
+      ansible.builtin.debug:
+        msg:
+          - "⚠️ Warning: Error occurred while creating backup"
+          - "Please check database name and backup path permissions"
+      tags: [error, always]
+
+# ========================================================================
+# 7. Firewall Configuration
+# ========================================================================
+- name: Configure firewall for MariaDB service
+  block:
+    - name: Ensure firewall allows MariaDB service
+      ansible.posix.firewalld:
+        service: "{{ mariadb_firewall_service }}"
+        state: enabled
+        immediate: true
+        permanent: true
+      when: mariadb_manage_firewall | bool
+      register: firewall_result
+      tags: [firewall, always]
+
+    - name: Display firewall configuration result for debugging
+      ansible.builtin.debug:
+        msg:
+          - "Firewall service '{{ mariadb_firewall_service }}' configured: {{ firewall_result.changed | default(false) }}"
+          - "Firewall management enabled: {{ mariadb_manage_firewall }}"
+      when: mariadb_manage_firewall | bool
+      tags: [debug, always]
+
+  rescue:
+    - name: Handle firewall configuration errors
+      ansible.builtin.debug:
+        msg:
+          - "⚠️ Warning: Error occurred while configuring firewall"
+          - "Firewall management can be disabled by setting mariadb_manage_firewall: false"
+      tags: [error, always]
+
