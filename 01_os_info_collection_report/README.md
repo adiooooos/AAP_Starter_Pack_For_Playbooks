@@ -3,8 +3,6 @@
 ## Overview
 
 This playbook automates the collection of comprehensive system information from RHEL/CentOS hosts and generates professional HTML reports for each target host. Reports are centrally stored on the Ansible control node for easy access and sharing.
-<img width="902" height="1252" alt="image" src="https://github.com/user-attachments/assets/49df7eac-026a-4846-a047-a304dd97ddb9" />
-
 
 ## Features
 
