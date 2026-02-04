@@ -1,0 +1,51 @@
+# ============================================================================
+# Role Default Variables: Kernel Log Monitor Role
+# ============================================================================
+#
+# Description:
+#   Default variables for the kernel_log_monitor role. These variables define
+#   which kernel errors to monitor (Critical and Severe categories) and
+#   configuration for alerts and reports.
+#
+# Customization:
+#   Modify kernel_errors.critical and kernel_errors.severe to add or remove
+#   error patterns you want to monitor. These are regex patterns that will
+#   be matched against kernel log lines.
+#
+# Author: GCG AAP SSA Team + v3.01 20260217
+#
+# License:
+#   📜 License Type: End User License Agreement (EULA)
+#   🔒 Authorization: Subscription-based License
+#
+# ============================================================================
+
+---
+# Kernel error patterns to monitor
+# Critical errors will trigger immediate wall broadcast alert
+# Severe errors will be logged to /var/log/kernel_events.log
+kernel_errors:
+  critical:
+    - 'Call Trace'
+    - 'panic'
+    - 'hung_task_timeout_secs'
+  severe:
+    - 'oom'
+    - 'segfault'
+    - 'hardware error'
+
+# Alert message template
+alert_message: "System detected kernel-level anomalies, please check immediately! Host: {{ inventory_hostname }}"
+
+# Number of log lines to capture
+# RHEL 8/9: journalctl --dmesg --lines
+# RHEL 7: tail -n
+log_lines: 100
+
+# Report storage paths
+report_base_path: "/tmp"
+collection_dest_path: "/tmp"
+
+# Kernel events log file path (for severe errors)
+kernel_events_log: "/var/log/kernel_events.log"
+

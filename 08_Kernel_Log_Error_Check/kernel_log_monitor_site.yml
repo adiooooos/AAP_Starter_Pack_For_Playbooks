@@ -1,0 +1,185 @@
+# ============================================================================
+# Playbook: Kernel Log Monitor Site Playbook
+# ============================================================================
+#
+# Description:
+#   Main playbook for automated kernel log error monitoring across multiple
+#   Linux hosts. This playbook orchestrates the kernel_log_monitor role to
+#   detect critical and severe kernel errors, send alerts, and generate
+#   comprehensive HTML reports.
+#
+# Purpose:
+#   - Automate kernel log error detection across multiple hosts
+#   - Classify errors into Critical and Severe categories
+#   - Send immediate alerts for critical errors (wall broadcast)
+#   - Log severe errors to dedicated log file
+#   - Generate detailed HTML health reports
+#   - Collect reports back to control node for centralized analysis
+#
+# Workflow:
+#   1. Play 1: Execute kernel log monitor role on all target hosts
+#      - Capture kernel logs (RHEL 7: /var/log/messages, RHEL 8/9: journalctl)
+#      - Classify errors into Critical and Severe
+#      - Send alerts via handlers
+#      - Generate HTML reports
+#   2. Play 2: Collect reports from all target hosts to control node
+#   3. Play 3: Display final summary and confirmation
+#
+# Usage:
+#   ansible-playbook kernel_log_monitor_site.yml -i inventory
+#
+# Author: GCG AAP SSA Team + v3.01 20260217
+#
+# License:
+#   📜 License Type: End User License Agreement (EULA)
+#   🔒 Authorization: Subscription-based License
+#
+# ============================================================================
+
+---
+# ============================================================================
+# Play 1: Execute Kernel Log Monitor on All Hosts
+# ============================================================================
+# This play runs the kernel_log_monitor role on all target hosts to detect
+# kernel errors, send alerts, and generate HTML reports.
+- name: Execute kernel log monitor and generate reports on all hosts
+  hosts: all
+  become: true
+  gather_facts: true
+
+  tasks:
+    # ========================================================================
+    # OS Compatibility Validation
+    # ========================================================================
+    - name: Validate OS compatibility (RHEL/CentOS 7/8/9 only)
+      ansible.builtin.assert:
+        that:
+          - ansible_os_family == "RedHat"
+          - ansible_distribution in ['RedHat', 'CentOS']
+          - ansible_distribution_major_version in ['7', '8', '9']
+        fail_msg: "Unsupported operating system. This playbook is only available for RHEL 7/8/9 and CentOS 7/8/9. Current OS: {{ ansible_distribution }} {{ ansible_distribution_major_version }}"
+        success_msg: "OS compatibility check passed: {{ ansible_distribution }} {{ ansible_distribution_major_version }}"
+      tags:
+        - validation
+        - always
+
+    - name: Display OS information for debugging
+      ansible.builtin.debug:
+        msg:
+          - "Distribution: {{ ansible_distribution }}"
+          - "Version: {{ ansible_distribution_version }}"
+          - "Major Version: {{ ansible_distribution_major_version }}"
+      tags:
+        - validation
+        - debug
+
+    # ========================================================================
+    # Execute Kernel Log Monitor Role
+    # ========================================================================
+    - name: Include kernel_log_monitor role
+      ansible.builtin.include_role:
+        name: kernel_log_monitor
+      tags:
+        - monitor
+        - always
+
+# ============================================================================
+# Play 2: Collect Reports from All Hosts
+# ============================================================================
+# This play collects the generated HTML report files from all target hosts
+# back to the control node for centralized analysis and storage.
+- name: Collect kernel log monitor reports from all hosts
+  hosts: all
+  gather_facts: false
+
+  vars:
+    # Define variables needed for this play (not loaded from role)
+    report_base_path: "/tmp"
+    collection_dest_path: "/tmp"
+
+  tasks:
+    # ========================================================================
+    # Validate Collection Parameters
+    # ========================================================================
+    - name: Validate collection destination path
+      ansible.builtin.assert:
+        that:
+          - collection_dest_path is defined
+          - collection_dest_path | length > 0
+        fail_msg: "collection_dest_path must be a valid directory path"
+        success_msg: "Collection destination path validated: {{ collection_dest_path }}"
+      tags:
+        - validation
+        - always
+
+    - name: Display collection configuration for debugging
+      ansible.builtin.debug:
+        msg:
+          - "Report source path: {{ report_base_path }}/kernel_report_{{ inventory_hostname }}.html"
+          - "Collection destination: {{ collection_dest_path }}"
+      tags:
+        - collection
+        - debug
+
+    # ========================================================================
+    # Fetch Report Files
+    # ========================================================================
+    - name: Fetch report file from remote host
+      ansible.builtin.fetch:
+        src: "{{ report_base_path }}/kernel_report_{{ inventory_hostname }}.html"
+        dest: "{{ collection_dest_path }}/"
+        flat: yes
+      register: fetch_result
+      tags:
+        - collection
+        - always
+
+    - name: Display fetch result for debugging
+      ansible.builtin.debug:
+        msg:
+          - "Report file fetched: {{ fetch_result.changed | default(false) }}"
+          - "Destination: {{ collection_dest_path }}/kernel_report_{{ inventory_hostname }}.html"
+      tags:
+        - collection
+        - debug
+
+# ============================================================================
+# Play 3: Final Summary and Confirmation
+# ============================================================================
+# This play runs on localhost to display a final summary and confirmation
+# that all reports have been successfully collected.
+- name: Display final summary and confirmation
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  vars:
+    collection_dest_path: "/tmp"
+
+  tasks:
+    # ========================================================================
+    # Final Summary
+    # ========================================================================
+    - name: Display completion summary
+      ansible.builtin.debug:
+        msg:
+          - "✅ All kernel log monitor reports have been successfully collected!"
+          - "Reports are stored in the control node's {{ collection_dest_path }}/ directory."
+          - "Report file naming format: kernel_report_<hostname>.html"
+          - "You can review individual reports in a web browser for detailed analysis."
+      tags:
+        - summary
+        - always
+
+    - name: Display next steps
+      ansible.builtin.debug:
+        msg:
+          - "Next steps:"
+          - "  1. Review individual reports: open {{ collection_dest_path }}/kernel_report_<hostname>.html in a web browser"
+          - "  2. Check for hosts with Critical errors (wall broadcast was sent)"
+          - "  3. Review Severe errors in /var/log/kernel_events.log on affected hosts"
+          - "  4. Take corrective actions as needed"
+      tags:
+        - summary
+        - always
+

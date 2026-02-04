@@ -1,0 +1,66 @@
+# ============================================================================
+# Role Handlers: Kernel Log Monitor Role
+# ============================================================================
+#
+# Description:
+#   Handlers for the kernel_log_monitor role. Handlers are triggered by
+#   notify statements in tasks and execute alert actions.
+#
+# Handlers:
+#   - emergency_alert: Sends wall broadcast for critical errors
+#   - priority_alert: Logs severe errors to /var/log/kernel_events.log
+#
+# Author: GCG AAP SSA Team + v3.01 20260217
+#
+# License:
+#   📜 License Type: End User License Agreement (EULA)
+#   🔒 Authorization: Subscription-based License
+#
+# ============================================================================
+
+---
+# ========================================================================
+# Emergency Alert Handler (Critical Errors)
+# ========================================================================
+- name: emergency_alert
+  ansible.builtin.command:
+    cmd: "wall 'EMERGENCY: {{ alert_message }}'"
+  changed_when: false
+  failed_when: false
+  ignore_errors: true
+  tags:
+    - alert
+    - always
+
+# ========================================================================
+# Priority Alert Handler (Severe Errors)
+# ========================================================================
+- name: priority_alert
+  block:
+    - name: Ensure kernel events log directory exists
+      ansible.builtin.file:
+        path: "{{ kernel_events_log | dirname }}"
+        state: directory
+        mode: '0755'
+      tags:
+        - alert
+        - always
+
+    - name: Log severe errors to kernel events log
+      ansible.builtin.lineinfile:
+        path: "{{ kernel_events_log }}"
+        line: "{{ ansible_date_time.iso8601 }} - PRIORITY ALERT: {{ alert_message }}"
+        create: yes
+        mode: '0644'
+      tags:
+        - alert
+        - always
+
+  rescue:
+    - name: Handle priority alert errors
+      ansible.builtin.debug:
+        msg: "⚠️ Warning: Failed to log priority alert to {{ kernel_events_log }}"
+      tags:
+        - alert
+        - always
+

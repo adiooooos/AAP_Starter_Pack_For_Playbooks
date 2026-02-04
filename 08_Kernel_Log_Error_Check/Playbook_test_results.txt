@@ -1,0 +1,615 @@
+[root@aap25 08_Kernel_Log_Error_Check]# ansible-playbook kernel_log_monitor_site.yml -i inventory
+
+PLAY [Execute kernel log monitor and generate reports on all hosts] ***************************************************************************************************
+
+TASK [Gathering Facts] ************************************************************************************************************************************************
+ok: [Test-RHEL-7.9-1]
+ok: [Test-RHEL-7.9-3]
+ok: [Test-RHEL-7.9-2]
+ok: [TEST-RHEL-8.9-1]
+ok: [ansible25.example.com]
+
+TASK [Validate OS compatibility (RHEL/CentOS 7/8/9 only)] *************************************************************************************************************
+ok: [Test-RHEL-7.9-1] => {
+    "changed": false,
+    "msg": "OS compatibility check passed: RedHat 7"
+}
+ok: [Test-RHEL-7.9-2] => {
+    "changed": false,
+    "msg": "OS compatibility check passed: RedHat 7"
+}
+ok: [Test-RHEL-7.9-3] => {
+    "changed": false,
+    "msg": "OS compatibility check passed: RedHat 7"
+}
+ok: [TEST-RHEL-8.9-1] => {
+    "changed": false,
+    "msg": "OS compatibility check passed: RedHat 8"
+}
+ok: [ansible25.example.com] => {
+    "changed": false,
+    "msg": "OS compatibility check passed: RedHat 9"
+}
+
+TASK [Display OS information for debugging] ***************************************************************************************************************************
+ok: [Test-RHEL-7.9-1] => {
+    "msg": [
+        "Distribution: RedHat",
+        "Version: 7.9",
+        "Major Version: 7"
+    ]
+}
+ok: [Test-RHEL-7.9-2] => {
+    "msg": [
+        "Distribution: RedHat",
+        "Version: 7.9",
+        "Major Version: 7"
+    ]
+}
+ok: [Test-RHEL-7.9-3] => {
+    "msg": [
+        "Distribution: RedHat",
+        "Version: 7.9",
+        "Major Version: 7"
+    ]
+}
+ok: [TEST-RHEL-8.9-1] => {
+    "msg": [
+        "Distribution: RedHat",
+        "Version: 8.7",
+        "Major Version: 8"
+    ]
+}
+ok: [ansible25.example.com] => {
+    "msg": [
+        "Distribution: RedHat",
+        "Version: 9.4",
+        "Major Version: 9"
+    ]
+}
+
+TASK [Include kernel_log_monitor role] ********************************************************************************************************************************
+
+TASK [kernel_log_monitor : Validate kernel_errors parameter] **********************************************************************************************************
+ok: [Test-RHEL-7.9-1] => {
+    "changed": false,
+    "msg": "Parameter validation passed: 3 critical patterns, 3 severe patterns"
+}
+ok: [Test-RHEL-7.9-2] => {
+    "changed": false,
+    "msg": "Parameter validation passed: 3 critical patterns, 3 severe patterns"
+}
+ok: [Test-RHEL-7.9-3] => {
+    "changed": false,
+    "msg": "Parameter validation passed: 3 critical patterns, 3 severe patterns"
+}
+ok: [TEST-RHEL-8.9-1] => {
+    "changed": false,
+    "msg": "Parameter validation passed: 3 critical patterns, 3 severe patterns"
+}
+ok: [ansible25.example.com] => {
+    "changed": false,
+    "msg": "Parameter validation passed: 3 critical patterns, 3 severe patterns"
+}
+
+TASK [kernel_log_monitor : Validate log_lines parameter] **************************************************************************************************************
+ok: [Test-RHEL-7.9-1] => {
+    "changed": false,
+    "msg": "Log lines parameter validated: 100"
+}
+ok: [Test-RHEL-7.9-3] => {
+    "changed": false,
+    "msg": "Log lines parameter validated: 100"
+}
+ok: [Test-RHEL-7.9-2] => {
+    "changed": false,
+    "msg": "Log lines parameter validated: 100"
+}
+ok: [TEST-RHEL-8.9-1] => {
+    "changed": false,
+    "msg": "Log lines parameter validated: 100"
+}
+ok: [ansible25.example.com] => {
+    "changed": false,
+    "msg": "Log lines parameter validated: 100"
+}
+
+TASK [kernel_log_monitor : Display kernel log monitor configuration for debugging] ************************************************************************************
+ok: [Test-RHEL-7.9-1] => {
+    "msg": [
+        "Critical error patterns: Call Trace, panic, hung_task_timeout_secs",
+        "Severe error patterns: oom, segfault, hardware error",
+        "Log lines to capture: 100",
+        "Report base path: /tmp",
+        "Kernel events log: /var/log/kernel_events.log"
+    ]
+}
+ok: [Test-RHEL-7.9-2] => {
+    "msg": [
+        "Critical error patterns: Call Trace, panic, hung_task_timeout_secs",
+        "Severe error patterns: oom, segfault, hardware error",
+        "Log lines to capture: 100",
+        "Report base path: /tmp",
+        "Kernel events log: /var/log/kernel_events.log"
+    ]
+}
+ok: [Test-RHEL-7.9-3] => {
+    "msg": [
+        "Critical error patterns: Call Trace, panic, hung_task_timeout_secs",
+        "Severe error patterns: oom, segfault, hardware error",
+        "Log lines to capture: 100",
+        "Report base path: /tmp",
+        "Kernel events log: /var/log/kernel_events.log"
+    ]
+}
+ok: [TEST-RHEL-8.9-1] => {
+    "msg": [
+        "Critical error patterns: Call Trace, panic, hung_task_timeout_secs",
+        "Severe error patterns: oom, segfault, hardware error",
+        "Log lines to capture: 100",
+        "Report base path: /tmp",
+        "Kernel events log: /var/log/kernel_events.log"
+    ]
+}
+ok: [ansible25.example.com] => {
+    "msg": [
+        "Critical error patterns: Call Trace, panic, hung_task_timeout_secs",
+        "Severe error patterns: oom, segfault, hardware error",
+        "Log lines to capture: 100",
+        "Report base path: /tmp",
+        "Kernel events log: /var/log/kernel_events.log"
+    ]
+}
+
+TASK [kernel_log_monitor : Validate OS compatibility (RHEL/CentOS 7/8/9 only)] ****************************************************************************************
+ok: [Test-RHEL-7.9-1] => {
+    "changed": false,
+    "msg": "OS compatibility check passed: RedHat 7"
+}
+ok: [Test-RHEL-7.9-2] => {
+    "changed": false,
+    "msg": "OS compatibility check passed: RedHat 7"
+}
+ok: [Test-RHEL-7.9-3] => {
+    "changed": false,
+    "msg": "OS compatibility check passed: RedHat 7"
+}
+ok: [TEST-RHEL-8.9-1] => {
+    "changed": false,
+    "msg": "OS compatibility check passed: RedHat 8"
+}
+ok: [ansible25.example.com] => {
+    "changed": false,
+    "msg": "OS compatibility check passed: RedHat 9"
+}
+
+TASK [kernel_log_monitor : Display OS information for debugging] ******************************************************************************************************
+ok: [Test-RHEL-7.9-1] => {
+    "msg": [
+        "Distribution: RedHat",
+        "Version: 7.9",
+        "Major Version: 7",
+        "Architecture: x86_64"
+    ]
+}
+ok: [Test-RHEL-7.9-2] => {
+    "msg": [
+        "Distribution: RedHat",
+        "Version: 7.9",
+        "Major Version: 7",
+        "Architecture: x86_64"
+    ]
+}
+ok: [Test-RHEL-7.9-3] => {
+    "msg": [
+        "Distribution: RedHat",
+        "Version: 7.9",
+        "Major Version: 7",
+        "Architecture: x86_64"
+    ]
+}
+ok: [TEST-RHEL-8.9-1] => {
+    "msg": [
+        "Distribution: RedHat",
+        "Version: 8.7",
+        "Major Version: 8",
+        "Architecture: x86_64"
+    ]
+}
+ok: [ansible25.example.com] => {
+    "msg": [
+        "Distribution: RedHat",
+        "Version: 9.4",
+        "Major Version: 9",
+        "Architecture: x86_64"
+    ]
+}
+
+TASK [kernel_log_monitor : Capture recent kernel logs (RHEL 8/9)] *****************************************************************************************************
+skipping: [Test-RHEL-7.9-1]
+skipping: [Test-RHEL-7.9-2]
+skipping: [Test-RHEL-7.9-3]
+ok: [ansible25.example.com]
+ok: [TEST-RHEL-8.9-1]
+
+TASK [kernel_log_monitor : Display RHEL 8/9 log capture result for debugging] *****************************************************************************************
+skipping: [Test-RHEL-7.9-1]
+skipping: [Test-RHEL-7.9-2]
+skipping: [Test-RHEL-7.9-3]
+ok: [TEST-RHEL-8.9-1] => {
+    "msg": "Kernel logs captured successfully (RHEL 8/9): 101 lines"
+}
+ok: [ansible25.example.com] => {
+    "msg": "Kernel logs captured successfully (RHEL 8/9): 29 lines"
+}
+
+TASK [kernel_log_monitor : Capture recent kernel logs (RHEL 7)] *******************************************************************************************************
+skipping: [TEST-RHEL-8.9-1]
+skipping: [ansible25.example.com]
+ok: [Test-RHEL-7.9-1]
+ok: [Test-RHEL-7.9-2]
+ok: [Test-RHEL-7.9-3]
+
+TASK [kernel_log_monitor : Display RHEL 7 log capture result for debugging] *******************************************************************************************
+ok: [Test-RHEL-7.9-1] => {
+    "msg": "Kernel logs captured successfully (RHEL 7): 100 lines"
+}
+ok: [Test-RHEL-7.9-2] => {
+    "msg": "Kernel logs captured successfully (RHEL 7): 100 lines"
+}
+ok: [Test-RHEL-7.9-3] => {
+    "msg": "Kernel logs captured successfully (RHEL 7): 100 lines"
+}
+skipping: [TEST-RHEL-8.9-1]
+skipping: [ansible25.example.com]
+
+TASK [kernel_log_monitor : Initialize fact variables] *****************************************************************************************************************
+ok: [Test-RHEL-7.9-1]
+ok: [Test-RHEL-7.9-2]
+ok: [Test-RHEL-7.9-3]
+ok: [TEST-RHEL-8.9-1]
+ok: [ansible25.example.com]
+
+TASK [kernel_log_monitor : Classify critical errors] ******************************************************************************************************************
+ok: [Test-RHEL-7.9-1]
+ok: [Test-RHEL-7.9-2]
+skipping: [TEST-RHEL-8.9-1]
+skipping: [ansible25.example.com]
+ok: [Test-RHEL-7.9-3]
+
+TASK [kernel_log_monitor : Classify severe errors] ********************************************************************************************************************
+ok: [Test-RHEL-7.9-1]
+ok: [Test-RHEL-7.9-2]
+skipping: [TEST-RHEL-8.9-1]
+skipping: [ansible25.example.com]
+ok: [Test-RHEL-7.9-3]
+
+TASK [kernel_log_monitor : Display classification results for debugging] **********************************************************************************************
+ok: [Test-RHEL-7.9-1] => {
+    "msg": [
+        "Critical errors detected: 0",
+        "Severe errors detected: 0"
+    ]
+}
+ok: [Test-RHEL-7.9-2] => {
+    "msg": [
+        "Critical errors detected: 0",
+        "Severe errors detected: 0"
+    ]
+}
+ok: [Test-RHEL-7.9-3] => {
+    "msg": [
+        "Critical errors detected: 0",
+        "Severe errors detected: 0"
+    ]
+}
+ok: [TEST-RHEL-8.9-1] => {
+    "msg": [
+        "Critical errors detected: 0",
+        "Severe errors detected: 0"
+    ]
+}
+ok: [ansible25.example.com] => {
+    "msg": [
+        "Critical errors detected: 0",
+        "Severe errors detected: 0"
+    ]
+}
+
+TASK [kernel_log_monitor : Flatten unique error entries] **************************************************************************************************************
+ok: [Test-RHEL-7.9-1]
+ok: [Test-RHEL-7.9-2]
+ok: [Test-RHEL-7.9-3]
+ok: [TEST-RHEL-8.9-1]
+ok: [ansible25.example.com]
+
+TASK [kernel_log_monitor : Display unique errors count for debugging] *************************************************************************************************
+ok: [Test-RHEL-7.9-1] => {
+    "msg": "Total unique errors: 0"
+}
+ok: [Test-RHEL-7.9-2] => {
+    "msg": "Total unique errors: 0"
+}
+ok: [Test-RHEL-7.9-3] => {
+    "msg": "Total unique errors: 0"
+}
+ok: [TEST-RHEL-8.9-1] => {
+    "msg": "Total unique errors: 0"
+}
+ok: [ansible25.example.com] => {
+    "msg": "Total unique errors: 0"
+}
+
+TASK [kernel_log_monitor : Display critical errors and notify] ********************************************************************************************************
+skipping: [Test-RHEL-7.9-1]
+skipping: [Test-RHEL-7.9-2]
+skipping: [TEST-RHEL-8.9-1]
+skipping: [Test-RHEL-7.9-3]
+skipping: [ansible25.example.com]
+
+TASK [kernel_log_monitor : Display severe warnings and notify] ********************************************************************************************************
+skipping: [Test-RHEL-7.9-1]
+skipping: [Test-RHEL-7.9-2]
+skipping: [Test-RHEL-7.9-3]
+skipping: [TEST-RHEL-8.9-1]
+skipping: [ansible25.example.com]
+
+TASK [kernel_log_monitor : Display no errors found message] ***********************************************************************************************************
+ok: [Test-RHEL-7.9-1] => {
+    "msg": "✅ No kernel errors detected. System is healthy."
+}
+ok: [Test-RHEL-7.9-2] => {
+    "msg": "✅ No kernel errors detected. System is healthy."
+}
+ok: [Test-RHEL-7.9-3] => {
+    "msg": "✅ No kernel errors detected. System is healthy."
+}
+ok: [TEST-RHEL-8.9-1] => {
+    "msg": "✅ No kernel errors detected. System is healthy."
+}
+ok: [ansible25.example.com] => {
+    "msg": "✅ No kernel errors detected. System is healthy."
+}
+
+TASK [kernel_log_monitor : Ensure detected_errors and unique_errors are defined for report] ***************************************************************************
+ok: [Test-RHEL-7.9-1]
+ok: [Test-RHEL-7.9-2]
+ok: [Test-RHEL-7.9-3]
+ok: [TEST-RHEL-8.9-1]
+ok: [ansible25.example.com]
+
+TASK [kernel_log_monitor : Display report generation variables for debugging] *****************************************************************************************
+ok: [Test-RHEL-7.9-1] => {
+    "msg": [
+        "Report generation variables:",
+        "  detected_errors.critical: 0 items",
+        "  detected_errors.severe: 0 items",
+        "  unique_errors: 0 items",
+        "  report_base_path: /tmp"
+    ]
+}
+ok: [Test-RHEL-7.9-2] => {
+    "msg": [
+        "Report generation variables:",
+        "  detected_errors.critical: 0 items",
+        "  detected_errors.severe: 0 items",
+        "  unique_errors: 0 items",
+        "  report_base_path: /tmp"
+    ]
+}
+ok: [Test-RHEL-7.9-3] => {
+    "msg": [
+        "Report generation variables:",
+        "  detected_errors.critical: 0 items",
+        "  detected_errors.severe: 0 items",
+        "  unique_errors: 0 items",
+        "  report_base_path: /tmp"
+    ]
+}
+ok: [ansible25.example.com] => {
+    "msg": [
+        "Report generation variables:",
+        "  detected_errors.critical: 0 items",
+        "  detected_errors.severe: 0 items",
+        "  unique_errors: 0 items",
+        "  report_base_path: /tmp"
+    ]
+}
+ok: [TEST-RHEL-8.9-1] => {
+    "msg": [
+        "Report generation variables:",
+        "  detected_errors.critical: 0 items",
+        "  detected_errors.severe: 0 items",
+        "  unique_errors: 0 items",
+        "  report_base_path: /tmp"
+    ]
+}
+
+TASK [kernel_log_monitor : Create report directory if it doesn't exist] ***********************************************************************************************
+ok: [Test-RHEL-7.9-1]
+ok: [Test-RHEL-7.9-2]
+ok: [Test-RHEL-7.9-3]
+ok: [TEST-RHEL-8.9-1]
+ok: [ansible25.example.com]
+
+TASK [kernel_log_monitor : Generate HTML report] **********************************************************************************************************************
+changed: [Test-RHEL-7.9-1]
+changed: [Test-RHEL-7.9-2]
+changed: [Test-RHEL-7.9-3]
+changed: [ansible25.example.com]
+changed: [TEST-RHEL-8.9-1]
+
+TASK [kernel_log_monitor : Verify report file was created] ************************************************************************************************************
+ok: [Test-RHEL-7.9-1]
+ok: [Test-RHEL-7.9-2]
+ok: [Test-RHEL-7.9-3]
+ok: [ansible25.example.com]
+ok: [TEST-RHEL-8.9-1]
+
+TASK [kernel_log_monitor : Display report generation success] *********************************************************************************************************
+ok: [Test-RHEL-7.9-1] => {
+    "msg": [
+        "✅ HTML report generated successfully",
+        "Report path: /tmp/kernel_report_Test-RHEL-7.9-1.html",
+        "Report file exists: True",
+        "Report file size: 4316 bytes"
+    ]
+}
+ok: [Test-RHEL-7.9-2] => {
+    "msg": [
+        "✅ HTML report generated successfully",
+        "Report path: /tmp/kernel_report_Test-RHEL-7.9-2.html",
+        "Report file exists: True",
+        "Report file size: 4316 bytes"
+    ]
+}
+ok: [Test-RHEL-7.9-3] => {
+    "msg": [
+        "✅ HTML report generated successfully",
+        "Report path: /tmp/kernel_report_Test-RHEL-7.9-3.html",
+        "Report file exists: True",
+        "Report file size: 4316 bytes"
+    ]
+}
+ok: [TEST-RHEL-8.9-1] => {
+    "msg": [
+        "✅ HTML report generated successfully",
+        "Report path: /tmp/kernel_report_TEST-RHEL-8.9-1.html",
+        "Report file exists: True",
+        "Report file size: 4317 bytes"
+    ]
+}
+ok: [ansible25.example.com] => {
+    "msg": [
+        "✅ HTML report generated successfully",
+        "Report path: /tmp/kernel_report_ansible25.example.com.html",
+        "Report file exists: True",
+        "Report file size: 4329 bytes"
+    ]
+}
+
+PLAY [Collect kernel log monitor reports from all hosts] **************************************************************************************************************
+
+TASK [Validate collection destination path] ***************************************************************************************************************************
+ok: [Test-RHEL-7.9-1] => {
+    "changed": false,
+    "msg": "Collection destination path validated: /tmp"
+}
+ok: [Test-RHEL-7.9-2] => {
+    "changed": false,
+    "msg": "Collection destination path validated: /tmp"
+}
+ok: [Test-RHEL-7.9-3] => {
+    "changed": false,
+    "msg": "Collection destination path validated: /tmp"
+}
+ok: [TEST-RHEL-8.9-1] => {
+    "changed": false,
+    "msg": "Collection destination path validated: /tmp"
+}
+ok: [ansible25.example.com] => {
+    "changed": false,
+    "msg": "Collection destination path validated: /tmp"
+}
+
+TASK [Display collection configuration for debugging] *****************************************************************************************************************
+ok: [Test-RHEL-7.9-1] => {
+    "msg": [
+        "Report source path: /tmp/kernel_report_Test-RHEL-7.9-1.html",
+        "Collection destination: /tmp"
+    ]
+}
+ok: [Test-RHEL-7.9-2] => {
+    "msg": [
+        "Report source path: /tmp/kernel_report_Test-RHEL-7.9-2.html",
+        "Collection destination: /tmp"
+    ]
+}
+ok: [Test-RHEL-7.9-3] => {
+    "msg": [
+        "Report source path: /tmp/kernel_report_Test-RHEL-7.9-3.html",
+        "Collection destination: /tmp"
+    ]
+}
+ok: [TEST-RHEL-8.9-1] => {
+    "msg": [
+        "Report source path: /tmp/kernel_report_TEST-RHEL-8.9-1.html",
+        "Collection destination: /tmp"
+    ]
+}
+ok: [ansible25.example.com] => {
+    "msg": [
+        "Report source path: /tmp/kernel_report_ansible25.example.com.html",
+        "Collection destination: /tmp"
+    ]
+}
+
+TASK [Fetch report file from remote host] *****************************************************************************************************************************
+changed: [Test-RHEL-7.9-2]
+changed: [Test-RHEL-7.9-1]
+changed: [Test-RHEL-7.9-3]
+changed: [ansible25.example.com]
+changed: [TEST-RHEL-8.9-1]
+
+TASK [Display fetch result for debugging] *****************************************************************************************************************************
+ok: [Test-RHEL-7.9-1] => {
+    "msg": [
+        "Report file fetched: True",
+        "Destination: /tmp/kernel_report_Test-RHEL-7.9-1.html"
+    ]
+}
+ok: [Test-RHEL-7.9-2] => {
+    "msg": [
+        "Report file fetched: True",
+        "Destination: /tmp/kernel_report_Test-RHEL-7.9-2.html"
+    ]
+}
+ok: [Test-RHEL-7.9-3] => {
+    "msg": [
+        "Report file fetched: True",
+        "Destination: /tmp/kernel_report_Test-RHEL-7.9-3.html"
+    ]
+}
+ok: [TEST-RHEL-8.9-1] => {
+    "msg": [
+        "Report file fetched: True",
+        "Destination: /tmp/kernel_report_TEST-RHEL-8.9-1.html"
+    ]
+}
+ok: [ansible25.example.com] => {
+    "msg": [
+        "Report file fetched: True",
+        "Destination: /tmp/kernel_report_ansible25.example.com.html"
+    ]
+}
+
+PLAY [Display final summary and confirmation] *************************************************************************************************************************
+
+TASK [Display completion summary] *************************************************************************************************************************************
+ok: [localhost] => {
+    "msg": [
+        "✅ All kernel log monitor reports have been successfully collected!",
+        "Reports are stored in the control node's /tmp/ directory.",
+        "Report file naming format: kernel_report_<hostname>.html",
+        "You can review individual reports in a web browser for detailed analysis."
+    ]
+}
+
+TASK [Display next steps] *********************************************************************************************************************************************
+ok: [localhost] => {
+    "msg": [
+        "Next steps:",
+        "  1. Review individual reports: open /tmp/kernel_report_<hostname>.html in a web browser",
+        "  2. Check for hosts with Critical errors (wall broadcast was sent)",
+        "  3. Review Severe errors in /var/log/kernel_events.log on affected hosts",
+        "  4. Take corrective actions as needed"
+    ]
+}
+
+PLAY RECAP ************************************************************************************************************************************************************
+TEST-RHEL-8.9-1            : ok=25   changed=2    unreachable=0    failed=0    skipped=6    rescued=0    ignored=0
+Test-RHEL-7.9-1            : ok=27   changed=2    unreachable=0    failed=0    skipped=4    rescued=0    ignored=0
+Test-RHEL-7.9-2            : ok=27   changed=2    unreachable=0    failed=0    skipped=4    rescued=0    ignored=0
+Test-RHEL-7.9-3            : ok=27   changed=2    unreachable=0    failed=0    skipped=4    rescued=0    ignored=0
+ansible25.example.com      : ok=25   changed=2    unreachable=0    failed=0    skipped=6    rescued=0    ignored=0
+localhost                  : ok=2    changed=0    unreachable=0    failed=0    skipped=0    rescued=0    ignored=0

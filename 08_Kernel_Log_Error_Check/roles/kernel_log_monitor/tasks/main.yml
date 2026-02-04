@@ -1,0 +1,329 @@
+# ============================================================================
+# Role Tasks: Kernel Log Monitor Role
+# ============================================================================
+#
+# Description:
+#   Core tasks for the kernel_log_monitor role. This role monitors kernel
+#   logs for errors, classifies them into Critical and Severe categories,
+#   sends alerts, and generates comprehensive HTML reports.
+#
+# Workflow:
+#   1. Validate input parameters and OS compatibility
+#   2. Capture kernel logs (RHEL 7: /var/log/messages, RHEL 8/9: journalctl)
+#   3. Initialize fact variables for error tracking
+#   4. Classify detected errors into Critical and Severe categories
+#   5. Flatten unique error entries
+#   6. Multi-level alert handling (handlers)
+#   7. Generate HTML report from template
+#   8. Handle errors gracefully with block-rescue structure
+#
+# Author: GCG AAP SSA Team + v3.01 20260217
+#
+# License:
+#   📜 License Type: End User License Agreement (EULA)
+#   🔒 Authorization: Subscription-based License
+#
+# ============================================================================
+
+---
+# ========================================================================
+# Input Parameter Validation
+# ========================================================================
+- name: Validate kernel_errors parameter
+  ansible.builtin.assert:
+    that:
+      - kernel_errors is defined
+      - kernel_errors.critical is defined
+      - kernel_errors.severe is defined
+      - kernel_errors.critical is iterable
+      - kernel_errors.severe is iterable
+    fail_msg: "kernel_errors must be defined with critical and severe lists"
+    success_msg: "Parameter validation passed: {{ kernel_errors.critical | length }} critical patterns, {{ kernel_errors.severe | length }} severe patterns"
+  tags:
+    - validation
+    - always
+
+- name: Validate log_lines parameter
+  ansible.builtin.assert:
+    that:
+      - log_lines is defined
+      - log_lines | int > 0
+    fail_msg: "log_lines must be a positive integer"
+    success_msg: "Log lines parameter validated: {{ log_lines }}"
+  tags:
+    - validation
+    - always
+
+- name: Display kernel log monitor configuration for debugging
+  ansible.builtin.debug:
+    msg:
+      - "Critical error patterns: {{ kernel_errors.critical | join(', ') }}"
+      - "Severe error patterns: {{ kernel_errors.severe | join(', ') }}"
+      - "Log lines to capture: {{ log_lines }}"
+      - "Report base path: {{ report_base_path }}"
+      - "Kernel events log: {{ kernel_events_log }}"
+  tags:
+    - validation
+    - debug
+
+# ========================================================================
+# OS Compatibility Validation
+# ========================================================================
+- name: Validate OS compatibility (RHEL/CentOS 7/8/9 only)
+  ansible.builtin.assert:
+    that:
+      - ansible_os_family == "RedHat"
+      - ansible_distribution in ['RedHat', 'CentOS']
+      - ansible_distribution_major_version in ['7', '8', '9']
+    fail_msg: "Unsupported operating system. This playbook is only available for RHEL 7/8/9 and CentOS 7/8/9. Current OS: {{ ansible_distribution }} {{ ansible_distribution_major_version }}"
+    success_msg: "OS compatibility check passed: {{ ansible_distribution }} {{ ansible_distribution_major_version }}"
+  tags:
+    - validation
+    - always
+
+- name: Display OS information for debugging
+  ansible.builtin.debug:
+    msg:
+      - "Distribution: {{ ansible_distribution }}"
+      - "Version: {{ ansible_distribution_version }}"
+      - "Major Version: {{ ansible_distribution_major_version }}"
+      - "Architecture: {{ ansible_architecture }}"
+  tags:
+    - validation
+    - debug
+
+# ========================================================================
+# Capture Kernel Logs
+# ========================================================================
+- name: Capture recent kernel logs (RHEL 8/9)
+  ansible.builtin.command:
+    cmd: journalctl --dmesg --lines={{ log_lines }}
+  register: log_output
+  changed_when: false
+  failed_when: false
+  when: ansible_distribution_major_version | int >= 8
+  tags:
+    - capture
+    - always
+
+- name: Display RHEL 8/9 log capture result for debugging
+  ansible.builtin.debug:
+    msg: "Kernel logs captured successfully (RHEL 8/9): {{ log_output.stdout_lines | default([]) | length }} lines"
+  when:
+    - ansible_distribution_major_version | int >= 8
+    - log_output.stdout_lines is defined
+  tags:
+    - capture
+    - debug
+
+- name: Capture recent kernel logs (RHEL 7)
+  ansible.builtin.command:
+    cmd: tail -n {{ log_lines }} /var/log/messages
+  register: log_output
+  changed_when: false
+  failed_when: false
+  when: ansible_distribution_major_version | int == 7
+  tags:
+    - capture
+    - always
+
+- name: Display RHEL 7 log capture result for debugging
+  ansible.builtin.debug:
+    msg: "Kernel logs captured successfully (RHEL 7): {{ log_output.stdout_lines | default([]) | length }} lines"
+  when:
+    - ansible_distribution_major_version | int == 7
+    - log_output.stdout_lines is defined
+  tags:
+    - capture
+    - debug
+
+# ========================================================================
+# Initialize Fact Variables
+# ========================================================================
+- name: Initialize fact variables
+  ansible.builtin.set_fact:
+    detected_errors:
+      critical: []
+      severe: []
+    unique_errors: []
+  tags:
+    - classify
+    - always
+
+# ========================================================================
+# Classify Detected Errors
+# ========================================================================
+- name: Classify detected errors from logs
+  block:
+    - name: Classify critical errors
+      ansible.builtin.set_fact:
+        detected_errors: "{{ detected_errors | combine({'critical': log_output.stdout_lines | select('regex', kernel_errors.critical | join('|'), ignorecase=true) | list}) }}"
+      when:
+        - log_output.stdout_lines is defined
+        - log_output.stdout_lines | length > 0
+        - kernel_errors.critical | length > 0
+      tags:
+        - classify
+        - always
+
+    - name: Classify severe errors
+      ansible.builtin.set_fact:
+        detected_errors: "{{ detected_errors | combine({'severe': log_output.stdout_lines | select('regex', kernel_errors.severe | join('|'), ignorecase=true) | list}) }}"
+      when:
+        - log_output.stdout_lines is defined
+        - log_output.stdout_lines | length > 0
+        - kernel_errors.severe | length > 0
+      tags:
+        - classify
+        - always
+
+    - name: Display classification results for debugging
+      ansible.builtin.debug:
+        msg:
+          - "Critical errors detected: {{ detected_errors.critical | length }}"
+          - "Severe errors detected: {{ detected_errors.severe | length }}"
+      tags:
+        - classify
+        - debug
+
+  rescue:
+    - name: Handle classification errors
+      ansible.builtin.debug:
+        msg:
+          - "⚠️ Warning: Error occurred during log classification"
+          - "This may indicate log format issues or missing log files"
+      tags:
+        - classify
+        - always
+
+# ========================================================================
+# Flatten Unique Error Entries
+# ========================================================================
+- name: Flatten unique error entries
+  ansible.builtin.set_fact:
+    unique_errors: "{{ (detected_errors.critical + detected_errors.severe) | unique }}"
+  tags:
+    - classify
+    - always
+
+- name: Display unique errors count for debugging
+  ansible.builtin.debug:
+    msg: "Total unique errors: {{ unique_errors | length }}"
+  tags:
+    - classify
+    - debug
+
+# ========================================================================
+# Multi-level Alert Handling
+# ========================================================================
+- name: Multi-level alert handling
+  block:
+    - name: Display critical errors and notify
+      ansible.builtin.debug:
+        msg:
+          - "CRITICAL ISSUES ({{ detected_errors.critical | length }}):"
+          - "{{ detected_errors.critical | join('\\n') }}"
+      when: detected_errors.critical | length > 0
+      notify: emergency_alert
+      tags:
+        - alert
+        - always
+
+    - name: Display severe warnings and notify
+      ansible.builtin.debug:
+        msg:
+          - "SEVERE WARNINGS ({{ detected_errors.severe | length }}):"
+          - "{{ detected_errors.severe | join('\\n') }}"
+      when: detected_errors.severe | length > 0
+      notify: priority_alert
+      tags:
+        - alert
+        - always
+
+  when: unique_errors | length > 0
+  tags:
+    - alert
+    - always
+
+- name: Display no errors found message
+  ansible.builtin.debug:
+    msg: "✅ No kernel errors detected. System is healthy."
+  when: unique_errors | length == 0
+  tags:
+    - alert
+    - debug
+
+# ========================================================================
+# Generate HTML Report
+# ========================================================================
+- name: Ensure detected_errors and unique_errors are defined for report
+  ansible.builtin.set_fact:
+    detected_errors: "{{ detected_errors | default({'critical': [], 'severe': []}) }}"
+    unique_errors: "{{ unique_errors | default([]) }}"
+  tags:
+    - report
+    - always
+
+- name: Display report generation variables for debugging
+  ansible.builtin.debug:
+    msg:
+      - "Report generation variables:"
+      - "  detected_errors.critical: {{ detected_errors.critical | length }} items"
+      - "  detected_errors.severe: {{ detected_errors.severe | length }} items"
+      - "  unique_errors: {{ unique_errors | length }} items"
+      - "  report_base_path: {{ report_base_path }}"
+  tags:
+    - report
+    - debug
+
+- name: Generate HTML report from template
+  block:
+    - name: Create report directory if it doesn't exist
+      ansible.builtin.file:
+        path: "{{ report_base_path }}"
+        state: directory
+        mode: '0755'
+      tags:
+        - report
+        - always
+
+    - name: Generate HTML report
+      ansible.builtin.template:
+        src: "kernel_report.html.j2"
+        dest: "{{ report_base_path }}/kernel_report_{{ inventory_hostname }}.html"
+        mode: '0644'
+      register: report_generation
+      tags:
+        - report
+        - always
+
+    - name: Verify report file was created
+      ansible.builtin.stat:
+        path: "{{ report_base_path }}/kernel_report_{{ inventory_hostname }}.html"
+      register: report_file_stat
+      tags:
+        - report
+        - always
+
+    - name: Display report generation success
+      ansible.builtin.debug:
+        msg:
+          - "✅ HTML report generated successfully"
+          - "Report path: {{ report_base_path }}/kernel_report_{{ inventory_hostname }}.html"
+          - "Report file exists: {{ report_file_stat.stat.exists | default(false) }}"
+          - "Report file size: {{ report_file_stat.stat.size | default(0) }} bytes"
+      tags:
+        - report
+        - debug
+
+  rescue:
+    - name: Handle report generation errors
+      ansible.builtin.debug:
+        msg:
+          - "❌ Error: Failed to generate HTML report"
+          - "Please check template file and permissions"
+          - "Error details: {{ report_generation.msg | default('Unknown error') }}"
+      tags:
+        - report
+        - always
+
