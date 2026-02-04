@@ -1,0 +1,28 @@
+---
+# roles/networkmanager_cli/tasks/main.yml
+# Task Master Controller - Fixed to use import_tasks to support tag inheritance
+
+- name: Import - View network information tasks
+  ansible.builtin.import_tasks: view.yml
+  when: nm_action_view | bool
+  tags: [view]
+
+- name: Import - Add network connection tasks
+  ansible.builtin.import_tasks: add.yml
+  when: nm_connections_to_add | length > 0
+  tags: [add]
+
+- name: Import - Control network connection tasks
+  ansible.builtin.import_tasks: control.yml
+  when: nm_connections_to_activate | length > 0 or nm_devices_to_deactivate | length > 0
+  tags: [control]
+
+- name: Import - Modify network connection tasks
+  ansible.builtin.import_tasks: modify.yml
+  when: nm_connections_to_modify | length > 0
+  tags: [modify]
+
+- name: Import - Delete network connection tasks
+  ansible.builtin.import_tasks: delete.yml
+  when: nm_connections_to_delete | length > 0
+  tags: [delete]

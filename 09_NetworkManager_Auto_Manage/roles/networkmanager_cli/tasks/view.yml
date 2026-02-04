@@ -1,0 +1,26 @@
+---
+#
+# Module Function: View network information
+# Control Variable: nm_action_view (set in vars/main.yml)
+# Example:
+# nm_action_view: true
+#
+- name: "1.1 View all network device status (nmcli dev status)"
+  ansible.builtin.command: nmcli dev status
+  register: dev_status
+  changed_when: false
+  failed_when: false
+
+- name: "   -> Display device status"
+  ansible.builtin.debug:
+    var: dev_status.stdout_lines
+
+- name: "1.2 View all network connections (nmcli con show)"
+  ansible.builtin.command: nmcli con show
+  register: con_show
+  changed_when: false
+  failed_when: false
+
+- name: "   -> Display connection information"
+  ansible.builtin.debug:
+    var: con_show.stdout_lines

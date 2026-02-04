@@ -1,0 +1,29 @@
+---
+#
+# Module Function: Add network connection
+# Control Variable: nm_connections_to_add (list defined in vars/main.yml)
+# Example:
+# nm_connections_to_add:
+#   - name: "static-eth1"
+#     ifname: "eth1"
+#     type: "ethernet"
+#     ip4: "192.168.100.50/24"
+#     gw4: "192.168.100.1"
+#     method: "manual"
+#
+- name: "2.1 Loop through and add specified network connections"
+  ansible.builtin.command: >
+    nmcli con add
+    con-name "{{ item.name }}"
+    ifname "{{ item.ifname }}"
+    type "{{ item.type }}"
+    {% if item.method == 'manual' %}
+    ipv4.method manual
+    ipv4.address "{{ item.ip4 | default('') }}"
+    ipv4.gateway "{{ item.gw4 | default('') }}"
+    {% else %}
+    ipv4.method auto
+    {% endif %}
+  loop: "{{ nm_connections_to_add }}"
+  register: add_result
+  changed_when: "'successfully added' in add_result.stdout"

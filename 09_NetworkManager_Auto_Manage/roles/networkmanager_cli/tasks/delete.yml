@@ -1,0 +1,18 @@
+---
+#
+# Module Function: Delete one or more network connections
+# Control Variable: nm_connections_to_delete (list defined in vars/main.yml)
+# Usage:
+#   Simply fill in the connection names you want to delete in the list.
+#
+# Example (defined in vars/main.yml):
+# nm_connections_to_delete:
+#   - old-connection-1
+#   - temp-for-test
+#
+- name: "5.1 Loop through and delete specified network connections"
+  ansible.builtin.command: "nmcli con del \"{{ item }}\""
+  loop: "{{ nm_connections_to_delete }}"
+  register: del_result
+  changed_when: "'successfully deleted' in del_result.stdout"
+  failed_when: del_result.rc != 0 and 'not found' not in del_result.stderr

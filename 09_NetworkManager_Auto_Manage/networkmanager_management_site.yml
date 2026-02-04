@@ -1,0 +1,7 @@
+---
+- name: Automated NetworkManager Management
+  hosts: all
+  become: true
+
+  roles:
+    - networkmanager_cli

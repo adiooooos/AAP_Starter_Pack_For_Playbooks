@@ -1,0 +1,29 @@
+---
+#
+# Module Function: Activate network connection (up) or deactivate network device (disconnect)
+# Control Variables:
+#   - nm_connections_to_activate (list of connection names)
+#   - nm_devices_to_deactivate   (list of device names, e.g., eth0, ens192)
+# Usage:
+#   Fill in the names in the corresponding lists.
+#
+# Example (defined in vars/main.yml):
+# nm_connections_to_activate:
+#   - static-eth1
+#
+# nm_devices_to_deactivate:
+#   - eth3
+#
+- name: "3.1 Activate specified network connections (nmcli con up)"
+  ansible.builtin.command: "nmcli con up \"{{ item }}\""
+  loop: "{{ nm_connections_to_activate }}"
+  register: up_result
+  changed_when: "'successfully activated' in up_result.stdout"
+  when: nm_connections_to_activate | length > 0
+
+- name: "3.2 Deactivate specified network devices (nmcli dev disconnect)"
+  ansible.builtin.command: "nmcli dev disconnect {{ item }}"
+  loop: "{{ nm_devices_to_deactivate }}"
+  register: dis_result
+  changed_when: "'successfully disconnected' in dis_result.stdout"
+  when: nm_devices_to_deactivate | length > 0

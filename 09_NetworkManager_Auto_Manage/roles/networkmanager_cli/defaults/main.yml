@@ -1,0 +1,10 @@
+---
+# Default variables for networkmanager_cli role
+# These are default values that can be overridden in vars/main.yml
+
+nm_action_view: false
+nm_connections_to_add: []
+nm_connections_to_modify: []
+nm_connections_to_activate: []
+nm_devices_to_deactivate: []
+nm_connections_to_delete: []

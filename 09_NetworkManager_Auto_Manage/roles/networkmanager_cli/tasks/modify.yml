@@ -1,0 +1,27 @@
+---
+#
+# Module Function: Modify parameters of an existing network connection
+# Control Variable: nm_connections_to_modify (list defined in vars/main.yml)
+# Usage:
+#   1. Specify the connection `name` to modify in the list.
+#   2. In the `settings` sub-list, provide the `key` and `value` to modify.
+#      - `key` is a parameter name supported by `nmcli` (e.g., ipv4.dns, connection.autoconnect).
+#      - `value` is the value you want to set.
+#      - Use '+' or '-' prefix to append or remove multi-value properties (like DNS).
+#
+# Example (defined in vars/main.yml):
+# nm_connections_to_modify:
+#   - name: "static-eth1"
+#     settings:
+#       - { key: "ipv4.dns", value: "114.114.114.114" }
+#       - { key: "+ipv4.dns", value: "8.8.8.8" }
+#       - { key: "connection.autoconnect", value: "yes" }
+#
+- name: "4.1 Loop through and modify specified network connections"
+  ansible.builtin.command: "nmcli con mod \"{{ item.0.name }}\" {{ item.1.key }} \"{{ item.1.value }}\""
+  with_subelements:
+    - "{{ nm_connections_to_modify }}"
+    - settings
+  loop_control:
+    label: "{{ item.0.name }} -> {{ item.1.key }} = {{ item.1.value }}"
+  notify: reload_connection # It is recommended to add a handler to reload the connection to make changes take effect

@@ -1,0 +1,53 @@
+---
+# roles/networkmanager_cli/vars/main.yml
+# 💡 This is the core control file for this Role! Author:FYCheung (fzhang@redhat.com)
+# You only need to modify the variables in this file to define all network operations to be executed on target hosts.
+
+# Whether to execute "view network information" operation?
+# Set to true to view the output of nmcli dev status and nmcli con show.
+nm_action_view: true
+
+# --- Add Network Connections ---
+# Define all network connections you want to create in this list.
+# Ansible will iterate through this list and create them on target hosts.
+nm_connections_to_add:
+  # Example 1: Add a static IP address connection
+  - name: "static-eth1"      # Network connection name
+    ifname: "eth1"            # Physical network interface to bind
+    type: "ethernet"          # Connection type
+    ip4: "192.168.100.50/24"  # IPv4 address and subnet mask
+    gw4: "192.168.100.1"      # IPv4 gateway
+    method: "manual"          # IP assignment method: manual means static
+
+  # Example 2: Add a DHCP connection
+  - name: "dhcp-eth2"
+    ifname: "eth2"
+    type: "ethernet"
+    method: "auto"            # IP assignment method: auto means DHCP
+
+# --- Modify Network Connections ---
+# Define connections and settings you want to modify in this list.
+nm_connections_to_modify:
+  # Example: Add DNS servers for 'static-eth1' connection
+  - name: "static-eth1"
+    settings:
+      # First time setting DNS
+      - { key: "ipv4.dns", value: "114.114.114.114" }
+      # Use '+' to append second DNS
+      - { key: "+ipv4.dns", value: "8.8.8.8" }
+
+# --- Control Network Connections ---
+# Define list of connection names to be activated (up)
+nm_connections_to_activate:
+  - static-eth1
+  - dhcp-eth2
+
+# Define list of physical devices to be deactivated (disconnect)
+nm_devices_to_deactivate:
+  #- eth3 # If you need to deactivate eth3
+
+# --- Delete Network Connections ---
+# Define list of connection names to be deleted
+nm_connections_to_delete:
+  - old-useless-connection
+  - temp-connection
