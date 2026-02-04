@@ -5,8 +5,8 @@
 This Ansible Role-based solution provides automated kernel log error monitoring across multiple Linux hosts. It proactively detects kernel-level errors, classifies them into Critical and Severe categories, sends immediate alerts, and generates comprehensive HTML reports that are collected back to the control node for centralized analysis.
 
 ## Reports
+<img width="1867" height="1085" alt="image" src="https://github.com/user-attachments/assets/70e4c6cf-608d-431b-97d9-2b0c2ab41349" />
 
-![1770178238818](image/README/1770178238818.png)
 
 ## Features
 
@@ -526,3 +526,4 @@ GCG AAP SSA Team + v3.01 20260217
 
 📜 License Type: End User License Agreement (EULA)
 🔒 Authorization: Subscription-based License
+
