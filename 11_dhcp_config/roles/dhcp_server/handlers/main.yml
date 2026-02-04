@@ -1,0 +1,28 @@
+# ============================================================================
+# Role Handlers: DHCP Server Role
+# ============================================================================
+#
+# Description:
+#   Handlers for restarting DHCP services when configuration changes.
+#
+# Author: GCG AAP SSA Team + v3.01 20260217
+#
+# License:
+#   📜 License Type: End User License Agreement (EULA)
+#   🔒 Authorization: Subscription-based License
+#
+# ============================================================================
+
+---
+- name: restart dhcpd
+  listen: "restart dhcpd"
+  ansible.builtin.service:
+    name: dhcpd
+    state: restarted
+
+- name: restart dhcpd6
+  listen: "restart dhcpd6"
+  ansible.builtin.service:
+    name: dhcpd6
+    state: restarted
+

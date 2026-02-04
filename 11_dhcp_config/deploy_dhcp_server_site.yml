@@ -1,0 +1,44 @@
+# ============================================================================
+# Playbook: Deploy and Configure DHCPv4 and DHCPv6 Server
+# ============================================================================
+#
+# Description:
+#   Deploy and configure DHCP server (both DHCPv4 and DHCPv6) with
+#   configuration files. Includes OS compatibility assertions, parameter
+#   validation, and robust error handling for critical changes.
+#
+# Author: GCG AAP SSA Team + v3.01 20260217
+#
+# License:
+#   📜 License Type: End User License Agreement (EULA)
+#   🔒 Authorization: Subscription-based License
+#
+# ============================================================================
+---
+- name: Deploy and configure DHCPv4 and DHCPv6 servers
+  hosts: dhcp_servers
+  become: true
+  gather_facts: true
+
+  pre_tasks:
+    - name: Validate OS compatibility (RHEL/CentOS 8/9)
+      ansible.builtin.assert:
+        that:
+          - ansible_os_family == "RedHat"
+          - ansible_distribution in ["RedHat", "CentOS", "Rocky", "AlmaLinux", "OracleLinux"]
+          - ansible_distribution_major_version in ["8", "9"]
+        fail_msg: "Unsupported operating system. This playbook is not available for the current OS. DHCP server requires RHEL/CentOS 8/9."
+        success_msg: "OS compatibility check passed: {{ ansible_distribution }} {{ ansible_distribution_major_version }}"
+      tags: [always]
+
+    - name: Display host information for debugging
+      ansible.builtin.debug:
+        msg:
+          - "Host: {{ inventory_hostname }}"
+          - "OS: {{ ansible_distribution }} {{ ansible_distribution_version }}"
+          - "Major Version: {{ ansible_distribution_major_version }}"
+      tags: [debug, always]
+
+  roles:
+    - role: dhcp_server
+

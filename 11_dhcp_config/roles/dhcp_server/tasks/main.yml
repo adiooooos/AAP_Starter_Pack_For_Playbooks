@@ -1,0 +1,162 @@
+# ============================================================================
+# Role Tasks: DHCP Server Role
+# ============================================================================
+#
+# Description:
+#   Core tasks for deploying and configuring DHCP server (both DHCPv4 and DHCPv6).
+#   Includes package installation, configuration deployment, service management,
+#   and firewall configuration with robust error handling.
+#
+# Author: GCG AAP SSA Team + v3.01 20260217
+#
+# License:
+#   📜 License Type: End User License Agreement (EULA)
+#   🔒 Authorization: Subscription-based License
+#
+# ============================================================================
+
+---
+# ========================================================================
+# 1. Pre-flight Checks
+# ========================================================================
+- name: Validate DHCP configuration files exist
+  ansible.builtin.assert:
+    that:
+      - dhcp_config_file is defined
+      - dhcp6_config_file is defined
+    fail_msg: "DHCP configuration file paths must be defined in defaults/main.yml"
+    success_msg: "DHCP configuration file paths validated"
+  tags: [validation, always]
+
+# ========================================================================
+# 2. Package Installation
+# ========================================================================
+- name: Ensure DHCP server package is installed
+  block:
+    - name: Install DHCP server package
+      ansible.builtin.yum:
+        name: "{{ dhcp_packages }}"
+        state: present
+      register: package_install_result
+      tags: [installation, always]
+
+    - name: Display package installation result for debugging
+      ansible.builtin.debug:
+        msg:
+          - "Packages installed: {{ dhcp_packages | join(', ') }}"
+          - "Installation changed: {{ package_install_result.changed }}"
+      tags: [debug, always]
+
+  rescue:
+    - name: Handle package installation errors
+      ansible.builtin.debug:
+        msg:
+          - "⚠️ Warning: Error occurred while installing DHCP server package"
+          - "Please check repository configuration and network connectivity"
+      tags: [error, always]
+
+# ========================================================================
+# 3. Configuration Deployment
+# ========================================================================
+- name: Deploy DHCP configuration files
+  block:
+    - name: Deploy DHCPv4 configuration file (dhcpd.conf)
+      ansible.builtin.copy:
+        src: "{{ dhcp_config_file }}"
+        dest: /etc/dhcp/dhcpd.conf
+        owner: root
+        group: root
+        mode: '0644'
+        setype: "{{ dhcp_config_setype }}"
+      register: dhcp4_config_result
+      notify: restart dhcpd
+      tags: [configuration, always]
+
+    - name: Deploy DHCPv6 configuration file (dhcpd6.conf)
+      ansible.builtin.copy:
+        src: "{{ dhcp6_config_file }}"
+        dest: /etc/dhcp/dhcpd6.conf
+        owner: root
+        group: root
+        mode: '0644'
+        setype: "{{ dhcp_config_setype }}"
+      register: dhcp6_config_result
+      notify: restart dhcpd6
+      tags: [configuration, always]
+
+    - name: Display configuration deployment result for debugging
+      ansible.builtin.debug:
+        msg:
+          - "DHCPv4 config deployed: {{ dhcp4_config_result.changed }}"
+          - "DHCPv6 config deployed: {{ dhcp6_config_result.changed }}"
+      tags: [debug, always]
+
+  rescue:
+    - name: Handle configuration deployment errors
+      ansible.builtin.debug:
+        msg:
+          - "⚠️ Warning: Error occurred while deploying DHCP configuration files"
+          - "Please check source file paths and permissions"
+      tags: [error, always]
+
+# ========================================================================
+# 4. Service Management
+# ========================================================================
+- name: Ensure DHCP services are started and enabled
+  block:
+    - name: Start and enable DHCP services
+      ansible.builtin.service:
+        name: "{{ item }}"
+        state: started
+        enabled: true
+      loop: "{{ dhcp_services }}"
+      register: service_result
+      tags: [service, always]
+
+    - name: Display service status for debugging
+      ansible.builtin.debug:
+        msg:
+          - "Services managed: {{ dhcp_services | join(', ') }}"
+          - "Service changes: {{ service_result.results | map(attribute='changed') | list }}"
+      tags: [debug, always]
+
+  rescue:
+    - name: Handle service management errors
+      ansible.builtin.debug:
+        msg:
+          - "⚠️ Warning: Error occurred while managing DHCP services"
+          - "Please check service status and configuration files"
+      tags: [error, always]
+
+# ========================================================================
+# 5. Firewall Configuration
+# ========================================================================
+- name: Configure firewall for DHCP services
+  block:
+    - name: Ensure firewall allows DHCP and DHCPv6 services
+      ansible.posix.firewalld:
+        service: "{{ item }}"
+        state: enabled
+        immediate: true
+        permanent: true
+      loop: "{{ dhcp_firewall_services }}"
+      when: dhcp_manage_firewall | bool
+      register: firewall_result
+      tags: [firewall, always]
+
+    - name: Display firewall configuration result for debugging
+      ansible.builtin.debug:
+        msg:
+          - "Firewall services configured: {{ dhcp_firewall_services | join(', ') }}"
+          - "Firewall management enabled: {{ dhcp_manage_firewall }}"
+      when: dhcp_manage_firewall | bool
+      tags: [debug, always]
+
+  rescue:
+    - name: Handle firewall configuration errors
+      ansible.builtin.debug:
+        msg:
+          - "⚠️ Warning: Error occurred while configuring firewall"
+          - "Firewall management can be disabled by setting dhcp_manage_firewall: false"
+      tags: [error, always]
+

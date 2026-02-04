@@ -1,0 +1,40 @@
+# ============================================================================
+# Role Default Variables: DHCP Server Role
+# ============================================================================
+#
+# Description:
+#   Default variables for the DHCP server role. These variables define
+#   package names, service names, configuration file paths, and firewall
+#   settings.
+#
+# Author: GCG AAP SSA Team + v3.01 20260217
+#
+# License:
+#   📜 License Type: End User License Agreement (EULA)
+#   🔒 Authorization: Subscription-based License
+#
+# ============================================================================
+
+---
+# Package management
+dhcp_packages:
+  - dhcp-server
+
+# Service management
+dhcp_services:
+  - dhcpd
+  - dhcpd6
+
+# Configuration files
+dhcp_config_file: dhcpd.conf
+dhcp6_config_file: dhcpd6.conf
+
+# SELinux context
+dhcp_config_setype: dhcp_etc_t
+
+# Firewall management
+dhcp_manage_firewall: true
+dhcp_firewall_services:
+  - dhcp
+  - dhcpv6
+

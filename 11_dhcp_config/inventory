@@ -1,0 +1,37 @@
+# ========================================================================
+# Ansible Inventory for DHCP Automation
+# ========================================================================
+
+# ------------------------------------------------------------------------
+# DHCP Server Group
+# ------------------------------------------------------------------------
+# The deploy_dhcp_server_site.yml playbook will execute on hosts in this group.
+# Place the hostnames or IP addresses of hosts you want to configure as DHCP servers here.
+# ------------------------------------------------------------------------
+[dhcp_servers]
+servera.example.com
+
+# ------------------------------------------------------------------------
+# DHCP Client Group
+# ------------------------------------------------------------------------
+# The configure_dhcp_client_site.yml playbook will execute on hosts in this group.
+# Place the hostnames or IP addresses of hosts you want to configure as DHCP clients here.
+# ------------------------------------------------------------------------
+[dhcp_clients]
+serverb.example.com
+serverc.example.com
+
+# ------------------------------------------------------------------------
+# AAP Starter Pack Inventory Groups (for reference)
+# ------------------------------------------------------------------------
+[rhel7]
+Test-RHEL-7.9-1
+Test-RHEL-7.9-2
+Test-RHEL-7.9-3
+
+[rhel8]
+TEST-RHEL-8.9-1
+
+[rhel9]
+ansible25.example.com
+
