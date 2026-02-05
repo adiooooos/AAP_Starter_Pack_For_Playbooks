@@ -1,0 +1,134 @@
+---
+# Chrony Configuration Role
+# Configures time synchronization using Chrony
+
+- name: Initialize chrony configuration status
+  ansible.builtin.set_fact:
+    chrony_errors: []
+    chrony_installed: false
+    chrony_configured: false
+    chrony_started: false
+
+- name: Install chrony
+  block:
+    - name: Install chrony package
+      ansible.builtin.package:
+        name: chrony
+        state: present
+      register: chrony_install
+      ignore_errors: yes
+
+    - name: Update installation status
+      ansible.builtin.set_fact:
+        chrony_installed: true
+      when: chrony_install is succeeded
+
+    - name: Display installation result
+      ansible.builtin.debug:
+        msg: "Chrony package {{ 'installed' if chrony_install.changed else 'already installed' }}"
+      when: chrony_install is succeeded
+  rescue:
+    - name: Record installation failure
+      ansible.builtin.set_fact:
+        chrony_errors: "{{ chrony_errors + ['Failed to install chrony package'] }}"
+
+    - name: Display installation failure warning
+      ansible.builtin.debug:
+        msg: "Warning: Failed to install chrony package. Continuing with other configurations."
+
+- name: Configure chrony service
+  block:
+    - name: Configure chrony
+      ansible.builtin.template:
+        src: chrony.conf.j2
+        dest: /etc/chrony.conf
+        owner: root
+        group: root
+        mode: '0644'
+        backup: "{{ backup.enabled | default(true) }}"
+      register: chrony_config
+      ignore_errors: yes
+      when: chrony_installed
+
+    - name: Update configuration status
+      ansible.builtin.set_fact:
+        chrony_configured: true
+      when: chrony_installed and chrony_config is succeeded
+
+    - name: Display configuration result
+      ansible.builtin.debug:
+        msg: "Chrony configuration {{ 'updated' if chrony_config.changed else 'unchanged' }}"
+      when: chrony_installed and chrony_config is succeeded
+  rescue:
+    - name: Record configuration failure
+      ansible.builtin.set_fact:
+        chrony_errors: "{{ chrony_errors + ['Failed to configure chrony'] }}"
+
+    - name: Display configuration failure warning
+      ansible.builtin.debug:
+        msg: "Warning: Failed to configure chrony. Continuing with other configurations."
+
+- name: Start chrony service
+  block:
+    - name: Start and enable chronyd service
+      ansible.builtin.systemd:
+        name: chronyd
+        state: started
+        enabled: yes
+        daemon_reload: yes
+      register: chrony_service
+      ignore_errors: yes
+      when: chrony_installed
+
+    - name: Update service status
+      ansible.builtin.set_fact:
+        chrony_started: true
+      when: chrony_installed and chrony_service is succeeded
+
+    - name: Display service status
+      ansible.builtin.debug:
+        msg: "Chronyd service {{ 'started' if chrony_service.changed else 'already running' }}"
+      when: chrony_installed and chrony_service is succeeded
+  rescue:
+    - name: Record service start failure
+      ansible.builtin.set_fact:
+        chrony_errors: "{{ chrony_errors + ['Failed to start chronyd service'] }}"
+
+    - name: Display service start failure warning
+      ansible.builtin.debug:
+        msg: "Warning: Failed to start chronyd service. Continuing with other configurations."
+
+- name: Wait for time synchronization
+  block:
+    - name: Wait for chrony to sync
+      ansible.builtin.pause:
+        seconds: 10
+      when: chrony_started
+
+    - name: Verify time synchronization status
+      ansible.builtin.shell: chronyc sources
+      register: chrony_sources
+      changed_when: false
+      ignore_errors: yes
+      when: chrony_started
+
+    - name: Display time synchronization status
+      ansible.builtin.debug:
+        msg: "{{ chrony_sources.stdout_lines }}"
+      when: chrony_started and chrony_sources is succeeded
+  rescue:
+    - name: Handle time sync verification failure
+      ansible.builtin.debug:
+        msg: "Warning: Time synchronization verification encountered issues (non-critical)"
+
+- name: Report chrony configuration summary
+  block:
+    - name: Display chrony configuration summary
+      ansible.builtin.debug:
+        msg:
+          - "=== Chrony Configuration Summary ==="
+          - "{% if chrony_installed %}✅ Chrony package installed{% else %}❌ Failed to install chrony package{% endif %}"
+          - "{% if chrony_configured %}✅ Chrony configuration updated{% else %}❌ Failed to configure chrony{% endif %}"
+          - "{% if chrony_started %}✅ Chronyd service started{% else %}❌ Failed to start chronyd service{% endif %}"
+          - "{% if chrony_errors | length > 0 %}⚠️  Errors encountered: {{ chrony_errors | join('; ') }}{% else %}✅ All chrony configuration tasks completed successfully{% endif %}"
+

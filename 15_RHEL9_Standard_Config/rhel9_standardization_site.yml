@@ -1,0 +1,136 @@
+---
+# RHEL9 System Standardization Configuration Playbook
+# 
+# Description:
+#   This playbook automates the standardization of RHEL9 systems including:
+#   - User management (admin user creation with sudo privileges)
+#   - System configuration (hostname validation, SELinux configuration)
+#   - Firewall configuration (port management)
+#   - Hosts file standardization
+#   - Time synchronization (Chrony configuration)
+#   - System optimization (limits, sysctl parameters)
+#   - Configuration verification
+#
+# Author: GCG AAP SSA Team + v3.01 Date 20260217
+#
+# License:
+#   📜 License Type: End User License Agreement (EULA)
+#   🔒 Authorization: Through Subscription
+#
+# Supported OS:
+#   - RHEL 9 only
+#
+# Usage:
+#   ansible-playbook rhel9_standardization_site.yml -i inventory
+
+- name: RHEL9 System Standardization Configuration
+  hosts: rhel9
+  gather_facts: yes
+  become: yes
+  
+  pre_tasks:
+    - name: Check OS compatibility
+      ansible.builtin.assert:
+        that:
+          - ansible_distribution == "RedHat"
+          - ansible_distribution_major_version == "9"
+        fail_msg: "Unsupported operating system. This playbook is only available for RHEL 9."
+        success_msg: "OS compatibility check passed: {{ ansible_distribution }} {{ ansible_distribution_version }}"
+      tags: always
+
+    - name: Display system information
+      ansible.builtin.debug:
+        msg:
+          - "Starting standardization for: {{ inventory_hostname }}"
+          - "OS: {{ ansible_distribution }} {{ ansible_distribution_version }}"
+          - "Hostname: {{ ansible_hostname }}"
+          - "IP Address: {{ ansible_default_ipv4.address | default('N/A') }}"
+      tags: always
+
+    - name: Validate required variables
+      ansible.builtin.assert:
+        that:
+          - admin_user is defined
+          - admin_password is defined
+          - firewall_ports is defined
+          - ntp_servers is defined
+        fail_msg: "Required variables are not defined. Please check group_vars/all.yml"
+        success_msg: "All required variables are defined"
+      tags: always
+
+  roles:
+    - role: user_management
+      tags: 
+        - user_management
+        - always
+    - role: system_config
+      tags: 
+        - system_config
+        - always
+    - role: firewall_config
+      tags: 
+        - firewall_config
+        - always
+    - role: hosts_config
+      tags: 
+        - hosts_config
+        - always
+    - role: chrony_config
+      tags: 
+        - chrony_config
+        - always
+    - role: system_optimization
+      tags: 
+        - system_optimization
+        - always
+    - role: verification
+      tags: 
+        - verification
+        - always
+
+  post_tasks:
+    - name: Collect configuration summary from all roles
+      ansible.builtin.set_fact:
+        all_configuration_errors: []
+        all_configuration_warnings: []
+      tags: always
+
+    - name: Display final configuration summary
+      ansible.builtin.debug:
+        msg:
+          - "═══════════════════════════════════════════════════════════════"
+          - "🎯 RHEL9 STANDARDIZATION CONFIGURATION SUMMARY"
+          - "═══════════════════════════════════════════════════════════════"
+          - "📋 Configuration Status:"
+          - "   • User Management: Check user_management role summary above"
+          - "   • System Configuration: Check system_config role summary above"
+          - "   • Firewall Configuration: Check firewall_config role summary above"
+          - "   • Hosts Configuration: Check hosts_config role summary above"
+          - "   • Chrony Configuration: Check chrony_config role summary above"
+          - "   • System Optimization: Check system_optimization role summary above"
+          - "   • Verification: Check verification role summary above"
+          - ""
+          - "📝 Next Steps:"
+          - "   • Review all role summaries above for any errors or warnings"
+          - "   • Address any failed configurations manually if needed"
+          - "   • A system reboot is recommended to apply all configurations"
+          - "═══════════════════════════════════════════════════════════════"
+      tags: always
+
+    - name: Prompt for system reboot
+      ansible.builtin.pause:
+        prompt: "Do you want to reboot the system to apply all configurations? (y/N)"
+      register: reboot_choice
+      tags: always
+
+    - name: Reboot system
+      ansible.builtin.reboot:
+        msg: "RHEL9 standardization completed, rebooting system..."
+        connect_timeout: 5
+        reboot_timeout: 300
+        pre_reboot_delay: 0
+        post_reboot_delay: 30
+        test_command: whoami
+      when: reboot_choice.user_input | lower == 'y'
+      tags: always
+

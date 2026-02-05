@@ -1,0 +1,121 @@
+---
+# User Management Role
+# Creates admin user with sudo privileges and session persistence
+
+- name: Initialize user management status
+  ansible.builtin.set_fact:
+    user_management_errors: []
+    user_created: false
+    sudo_configured: false
+    session_enabled: false
+
+- name: Create admin user
+  block:
+    - name: Create admin user
+      ansible.builtin.user:
+        name: "{{ admin_user }}"
+        password: "{{ admin_password | password_hash('sha512') }}"
+        shell: /bin/bash
+        create_home: yes
+        state: present
+      register: user_creation
+
+    - name: Update user creation status
+      ansible.builtin.set_fact:
+        user_created: true
+
+    - name: Display user creation result
+      ansible.builtin.debug:
+        msg: "Admin user '{{ admin_user }}' {{ 'created' if user_creation.changed else 'already exists' }}"
+  rescue:
+    - name: Record user creation failure
+      ansible.builtin.set_fact:
+        user_management_errors: "{{ user_management_errors + ['Failed to create admin user: ' + admin_user] }}"
+
+    - name: Display user creation failure warning
+      ansible.builtin.debug:
+        msg: "Warning: Failed to create admin user: {{ admin_user }}. Continuing with other configurations."
+
+- name: Configure sudo privileges
+  block:
+    - name: Add sudo rule for admin user
+      ansible.builtin.lineinfile:
+        path: /etc/sudoers.d/{{ admin_user }}
+        line: "{{ admin_user }} ALL=(ALL) NOPASSWD: ALL"
+        state: present
+        create: yes
+        mode: '0440'
+        validate: 'visudo -cf %s'
+      register: sudo_config
+      ignore_errors: yes
+
+    - name: Update sudo configuration status
+      ansible.builtin.set_fact:
+        sudo_configured: true
+      when: sudo_config is succeeded
+
+    - name: Display sudo configuration result
+      ansible.builtin.debug:
+        msg: "Sudo privileges {{ 'configured' if sudo_config.changed else 'already configured' }} for user '{{ admin_user }}'"
+      when: sudo_config is succeeded
+  rescue:
+    - name: Record sudo configuration failure
+      ansible.builtin.set_fact:
+        user_management_errors: "{{ user_management_errors + ['Failed to configure sudo privileges for user: ' + admin_user] }}"
+
+    - name: Display sudo configuration failure warning
+      ansible.builtin.debug:
+        msg: "Warning: Failed to configure sudo privileges for user: {{ admin_user }}. Continuing with other configurations."
+
+- name: Enable user session persistence
+  block:
+    - name: Enable systemd user session
+      ansible.builtin.systemd:
+        name: "user@{{ admin_user }}.service"
+        enabled: yes
+        daemon_reload: yes
+      register: session_enabled
+      ignore_errors: yes
+
+    - name: Update session persistence status
+      ansible.builtin.set_fact:
+        session_enabled: true
+      when: session_enabled is succeeded
+
+    - name: Display session persistence result
+      ansible.builtin.debug:
+        msg: "User session persistence {{ 'enabled' if session_enabled.changed else 'already enabled' }}"
+      when: session_enabled is succeeded
+  rescue:
+    - name: Handle session persistence failure
+      ansible.builtin.debug:
+        msg: "Warning: Failed to enable user session persistence (non-critical)"
+
+- name: Verify user creation
+  block:
+    - name: Check user existence
+      ansible.builtin.shell: id {{ admin_user }}
+      register: user_check
+      changed_when: false
+      ignore_errors: yes
+
+    - name: Display user information
+      ansible.builtin.debug:
+        msg: "User '{{ admin_user }}' verification: {{ user_check.stdout }}"
+      when: user_check is succeeded
+  rescue:
+    - name: Handle verification failure
+      ansible.builtin.debug:
+        msg: "Warning: User verification encountered issues (non-critical)"
+
+- name: Report user management summary
+  block:
+    - name: Display user management summary
+      ansible.builtin.debug:
+        msg:
+          - "=== User Management Summary ==="
+          - "{% if user_created %}✅ Admin user created/verified{% else %}❌ Failed to create admin user{% endif %}"
+          - "{% if sudo_configured %}✅ Sudo privileges configured{% else %}❌ Failed to configure sudo privileges{% endif %}"
+          - "{% if session_enabled %}✅ Session persistence enabled{% else %}⚠️  Session persistence not enabled (non-critical){% endif %}"
+          - "{% if user_management_errors | length > 0 %}⚠️  Errors encountered: {{ user_management_errors | join('; ') }}{% else %}✅ All user management tasks completed successfully{% endif %}"
+

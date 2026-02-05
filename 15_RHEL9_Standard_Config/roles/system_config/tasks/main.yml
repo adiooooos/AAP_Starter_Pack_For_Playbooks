@@ -1,0 +1,113 @@
+---
+# System Configuration Role
+# Validates hostname configuration and configures SELinux
+
+- name: Validate hostname configuration
+  block:
+    - name: Check localhost connectivity
+      ansible.builtin.ping:
+        data: localhost
+      register: local_ping
+      changed_when: false
+
+    - name: Display localhost connectivity result
+      ansible.builtin.debug:
+        msg: "Localhost connectivity: {{ 'OK' if local_ping.ping == 'pong' else 'FAILED' }}"
+
+    - name: Get hostname information
+      ansible.builtin.shell: hostname -f
+      register: hostname_info
+      changed_when: false
+
+    - name: Display hostname information
+      ansible.builtin.debug:
+        msg: "FQDN: {{ hostname_info.stdout }}"
+
+    - name: Check FQDN resolution
+      ansible.builtin.ping:
+        data: "{{ hostname_info.stdout }}"
+      register: fqdn_ping
+      ignore_errors: yes
+      changed_when: false
+
+    - name: Display FQDN resolution result
+      ansible.builtin.debug:
+        msg: "FQDN resolution: {{ 'OK' if fqdn_ping.ping == 'pong' else 'FAILED' }}"
+  rescue:
+    - name: Handle hostname validation failure
+      ansible.builtin.debug:
+        msg: "Warning: Hostname validation encountered issues (non-critical)"
+
+- name: Initialize system config status
+  ansible.builtin.set_fact:
+    system_config_errors: []
+    selinux_configured: false
+
+- name: Configure SELinux
+  block:
+    - name: Check current SELinux status
+      ansible.builtin.shell: sestatus
+      register: selinux_status
+      changed_when: false
+      ignore_errors: yes
+
+    - name: Display SELinux status
+      ansible.builtin.debug:
+        msg: "{{ selinux_status.stdout_lines }}"
+      when: selinux_status is succeeded
+
+    - name: Set SELinux state temporarily
+      ansible.posix.selinux:
+        state: "{{ selinux.state }}"
+        policy: "{{ selinux.policy }}"
+      register: selinux_temp_set
+      ignore_errors: yes
+
+    - name: Configure SELinux permanently
+      ansible.builtin.lineinfile:
+        path: /etc/selinux/config
+        regexp: '^SELINUX='
+        line: 'SELINUX={{ selinux.state }}'
+        backup: "{{ backup.enabled | default(true) }}"
+      register: selinux_config
+      ignore_errors: yes
+
+    - name: Update SELinux configuration status
+      ansible.builtin.set_fact:
+        selinux_configured: true
+      when: selinux_config is succeeded
+
+    - name: Display SELinux configuration result
+      ansible.builtin.debug:
+        msg: "SELinux configured to: {{ selinux.state }}"
+      when: selinux_config is succeeded
+
+    - name: Verify SELinux configuration
+      ansible.builtin.shell: grep SELINUX /etc/selinux/config
+      register: selinux_verification
+      changed_when: false
+      ignore_errors: yes
+
+    - name: Display SELinux configuration verification
+      ansible.builtin.debug:
+        msg: "{{ selinux_verification.stdout_lines }}"
+      when: selinux_verification is succeeded
+  rescue:
+    - name: Record SELinux configuration failure
+      ansible.builtin.set_fact:
+        system_config_errors: "{{ system_config_errors + ['Failed to configure SELinux'] }}"
+
+    - name: Display SELinux configuration failure warning
+      ansible.builtin.debug:
+        msg: "Warning: Failed to configure SELinux. Continuing with other configurations."
+
+- name: Report system configuration summary
+  block:
+    - name: Display system configuration summary
+      ansible.builtin.debug:
+        msg:
+          - "=== System Configuration Summary ==="
+          - "✅ Hostname validation completed"
+          - "{% if selinux_configured %}✅ SELinux configured to {{ selinux.state }}{% else %}❌ Failed to configure SELinux{% endif %}"
+          - "{% if system_config_errors | length > 0 %}⚠️  Errors encountered: {{ system_config_errors | join('; ') }}{% else %}✅ All system configuration tasks completed successfully{% endif %}"
+

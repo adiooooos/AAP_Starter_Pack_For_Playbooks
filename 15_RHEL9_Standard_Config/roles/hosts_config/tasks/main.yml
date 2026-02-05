@@ -1,0 +1,210 @@
+---
+# Hosts Configuration Role
+# Standardizes /etc/hosts file from template server
+
+- name: Backup current hosts file
+  block:
+    - name: Backup hosts file
+      ansible.builtin.copy:
+        src: /etc/hosts
+        dest: "/etc/hosts.backup.{{ ansible_date_time.epoch }}"
+        remote_src: yes
+        backup: "{{ backup.enabled | default(true) }}"
+      register: hosts_backup
+
+    - name: Display backup result
+      ansible.builtin.debug:
+        msg: "Hosts file backup completed"
+  rescue:
+    - name: Handle backup failure
+      ansible.builtin.fail:
+        msg: "Failed to backup hosts file"
+
+- name: Initialize hosts template path
+  ansible.builtin.set_fact:
+    hosts_template_local_path: "/tmp/hosts.template.{{ ansible_date_time.epoch }}"
+    hosts_template_fetched: false
+
+- name: Fetch hosts file from template server
+  block:
+    - name: Fetch hosts file from template server
+      ansible.builtin.fetch:
+        src: "{{ template_server.hosts_file }}"
+        dest: "{{ hosts_template_local_path }}"
+        flat: yes
+      delegate_to: "{{ groups['template_servers'][0] | default(template_server.host) }}"
+      run_once: true
+      register: fetch_result
+
+    - name: Update fetch status
+      ansible.builtin.set_fact:
+        hosts_template_fetched: true
+      when: fetch_result is succeeded
+
+    - name: Display fetch result
+      ansible.builtin.debug:
+        msg: "Hosts file fetched from template server to {{ hosts_template_local_path }}"
+      when: fetch_result is succeeded
+  rescue:
+    - name: Handle fetch failure
+      ansible.builtin.set_fact:
+        hosts_template_fetched: false
+
+    - name: Display fetch failure warning
+      ansible.builtin.debug:
+        msg: "Warning: Failed to fetch hosts file from template server. Hosts configuration will be skipped."
+
+- name: Copy template hosts file to target server
+  block:
+    - name: Check if template file exists on control node
+      ansible.builtin.stat:
+        path: "{{ hosts_template_local_path }}"
+      delegate_to: localhost
+      run_once: true
+      register: hosts_template_stat
+
+    - name: Copy template to remote location
+      ansible.builtin.copy:
+        src: "{{ hosts_template_local_path }}"
+        dest: "/tmp/hosts.remote"
+      register: copy_result
+      when: 
+        - hosts_template_fetched
+        - hosts_template_stat.stat.exists
+
+    - name: Display copy result
+      ansible.builtin.debug:
+        msg: "Template hosts file copied to target server"
+      when: 
+        - hosts_template_fetched
+        - copy_result is succeeded
+
+    - name: Display copy skip message
+      ansible.builtin.debug:
+        msg: "Warning: Template file not found on control node. Skipping copy."
+      when: 
+        - hosts_template_fetched
+        - not hosts_template_stat.stat.exists
+  rescue:
+    - name: Handle copy failure
+      ansible.builtin.debug:
+        msg: "Warning: Failed to copy template hosts file. Hosts configuration will be skipped."
+
+- name: Get local network information
+  block:
+    - name: Set local network facts
+      ansible.builtin.set_fact:
+        local_ip: "{{ ansible_default_ipv4.address }}"
+        local_hostname: "{{ ansible_hostname }}"
+        local_fqdn: "{{ ansible_fqdn }}"
+
+    - name: Display local network information
+      ansible.builtin.debug:
+        msg:
+          - "Local IP: {{ local_ip }}"
+          - "Local Hostname: {{ local_hostname }}"
+          - "Local FQDN: {{ local_fqdn }}"
+  rescue:
+    - name: Handle network information failure
+      ansible.builtin.fail:
+        msg: "Failed to get local network information"
+
+- name: Merge hosts file
+  block:
+    - name: Check if template file exists on remote
+      ansible.builtin.stat:
+        path: /tmp/hosts.remote
+      register: hosts_remote_stat
+
+    - name: Copy template hosts file to /etc/hosts
+      ansible.builtin.copy:
+        src: /tmp/hosts.remote
+        dest: /etc/hosts
+        remote_src: yes
+        backup: "{{ backup.enabled | default(true) }}"
+      register: hosts_merge
+      when: hosts_remote_stat.stat.exists
+
+    - name: Display merge result
+      ansible.builtin.debug:
+        msg: "Hosts file merged from template"
+      when: hosts_remote_stat.stat.exists
+
+    - name: Skip merge when template not available
+      ansible.builtin.debug:
+        msg: "Warning: Template hosts file not available. Skipping hosts file merge."
+      when: not hosts_remote_stat.stat.exists
+  rescue:
+    - name: Handle merge failure
+      ansible.builtin.debug:
+        msg: "Warning: Failed to merge hosts file. Please check template server connectivity."
+
+- name: Add local entry to hosts file
+  block:
+    - name: Check if local entry exists
+      ansible.builtin.shell: grep -q "{{ local_ip }}" /etc/hosts
+      register: local_entry_exists
+      failed_when: false
+      changed_when: false
+
+    - name: Add local entry to hosts file
+      ansible.builtin.lineinfile:
+        path: /etc/hosts
+        line: "{{ local_ip }} {{ local_fqdn }} {{ local_hostname }}"
+        state: present
+      when: local_entry_exists.rc != 0
+      register: local_entry_added
+
+    - name: Display local entry result
+      ansible.builtin.debug:
+        msg: "Local entry {{ 'added' if local_entry_added.changed else 'already exists' }}"
+  rescue:
+    - name: Handle local entry failure
+      ansible.builtin.debug:
+        msg: "Warning: Failed to add local entry (non-critical)"
+
+- name: Verify hosts file configuration
+  block:
+    - name: Display hosts file content
+      ansible.builtin.shell: cat /etc/hosts
+      register: hosts_content
+      changed_when: false
+
+    - name: Display hosts file
+      ansible.builtin.debug:
+        msg: "{{ hosts_content.stdout_lines }}"
+  rescue:
+    - name: Handle verification failure
+      ansible.builtin.debug:
+        msg: "Warning: Hosts file verification encountered issues (non-critical)"
+
+- name: Cleanup temporary files
+  block:
+    - name: Remove remote temporary files
+      ansible.builtin.file:
+        path: "/tmp/hosts.remote"
+        state: absent
+      ignore_errors: yes
+
+    - name: Remove local template file
+      ansible.builtin.file:
+        path: "{{ hosts_template_local_path }}"
+        state: absent
+      delegate_to: localhost
+      run_once: true
+      ignore_errors: yes
+  rescue:
+    - name: Handle cleanup failure
+      ansible.builtin.debug:
+        msg: "Warning: Cleanup encountered issues (non-critical)"
+
+- name: Report hosts configuration summary
+  block:
+    - name: Display hosts configuration summary
+      ansible.builtin.debug:
+        msg:
+          - "=== Hosts Configuration Summary ==="
+          - "{% if fetch_result is succeeded %}✅ Hosts file fetched from template server{% else %}❌ Failed to fetch hosts file from template server{% endif %}"
+          - "{% if copy_result is defined and copy_result is succeeded %}✅ Template file copied to target server{% elif fetch_result is succeeded %}⚠️  Warning: Template file copy may have failed{% else %}⚠️  Warning: Hosts configuration skipped due to fetch failure{% endif %}"
+          - "{% if hosts_merge is defined and hosts_merge is succeeded %}✅ Hosts file merged successfully{% elif hosts_remote_stat.stat.exists is defined and hosts_remote_stat.stat.exists %}⚠️  Warning: Hosts file merge may have failed{% else %}⚠️  Warning: Hosts file merge was skipped{% endif %}"
+

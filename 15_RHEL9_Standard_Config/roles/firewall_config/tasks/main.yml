@@ -1,0 +1,185 @@
+---
+# Firewall Configuration Role
+# Configures firewalld service and opens required ports
+
+- name: Initialize firewall configuration status
+  ansible.builtin.set_fact:
+    firewall_failed_ports: []
+    firewall_service_available: false
+
+- name: Check firewalld service status
+  block:
+    - name: Check if firewalld is installed
+      ansible.builtin.command: systemctl is-active firewalld
+      register: firewalld_check
+      changed_when: false
+      failed_when: false
+
+    - name: Set firewall service availability
+      ansible.builtin.set_fact:
+        firewall_service_available: "{{ firewalld_check.rc == 0 }}"
+      when: firewalld_check.rc == 0
+
+    - name: Display firewalld status
+      ansible.builtin.debug:
+        msg: "Firewalld service is {{ 'running' if firewall_service_available else 'not running or not installed' }}"
+  rescue:
+    - name: Handle firewalld check failure
+      ansible.builtin.set_fact:
+        firewall_service_available: false
+
+    - name: Display firewalld check failure warning
+      ansible.builtin.debug:
+        msg: "Warning: Unable to check firewalld status, assuming not available"
+
+- name: Ensure firewalld service is running
+  block:
+    - name: Start and enable firewalld service
+      ansible.builtin.systemd:
+        name: firewalld
+        state: started
+        enabled: yes
+      register: firewalld_service
+      when: not firewall_service_available
+
+    - name: Update firewall service availability
+      ansible.builtin.set_fact:
+        firewall_service_available: true
+      when: firewalld_service is succeeded or firewall_service_available
+
+    - name: Display firewalld service status
+      ansible.builtin.debug:
+        msg: "Firewalld service {{ 'started' if firewalld_service.changed else 'already running' }}"
+  rescue:
+    - name: Handle firewalld service failure
+      ansible.builtin.set_fact:
+        firewall_service_available: false
+
+    - name: Display firewalld service failure warning
+      ansible.builtin.debug:
+        msg: "Warning: Failed to start firewalld service. Firewall configuration will be skipped."
+
+- name: Open TCP ports
+  block:
+    - name: Open TCP ports in firewall
+      ansible.posix.firewalld:
+        port: "{{ item }}/tcp"
+        permanent: yes
+        state: enabled
+        immediate: yes
+      loop: "{{ firewall_ports }}"
+      register: tcp_ports_result
+      ignore_errors: yes
+      when: firewall_service_available
+
+    - name: Collect failed TCP ports
+      ansible.builtin.set_fact:
+        firewall_failed_ports: "{{ firewall_failed_ports + [item.item|string + '/tcp'] }}"
+      loop: "{{ tcp_ports_result.results | default([]) }}"
+      when: 
+        - firewall_service_available
+        - item.failed | default(false)
+      loop_control:
+        label: "{{ item.item }}/tcp"
+
+    - name: Mark all TCP ports as failed when firewalld is not available
+      ansible.builtin.set_fact:
+        firewall_failed_ports: "{{ firewall_failed_ports + [item|string + '/tcp'] }}"
+      loop: "{{ firewall_ports }}"
+      when: not firewall_service_available
+
+    - name: Display TCP ports configuration result
+      ansible.builtin.debug:
+        msg: "TCP ports opened: {{ firewall_ports | join(', ') }}"
+      when: firewall_service_available and tcp_ports_result.results | selectattr('failed', 'equalto', false) | list | length > 0
+  rescue:
+    - name: Handle TCP ports configuration failure
+      ansible.builtin.debug:
+        msg: "Warning: TCP ports configuration encountered issues. Firewalld may not be running."
+
+- name: Open UDP ports
+  block:
+    - name: Open UDP ports in firewall
+      ansible.posix.firewalld:
+        port: "{{ item }}/udp"
+        permanent: yes
+        state: enabled
+        immediate: yes
+      loop: "{{ firewall_ports }}"
+      register: udp_ports_result
+      ignore_errors: yes
+      when: firewall_service_available
+
+    - name: Collect failed UDP ports
+      ansible.builtin.set_fact:
+        firewall_failed_ports: "{{ firewall_failed_ports + [item.item|string + '/udp'] }}"
+      loop: "{{ udp_ports_result.results | default([]) }}"
+      when: 
+        - firewall_service_available
+        - item.failed | default(false)
+      loop_control:
+        label: "{{ item.item }}/udp"
+
+    - name: Mark all UDP ports as failed when firewalld is not available
+      ansible.builtin.set_fact:
+        firewall_failed_ports: "{{ firewall_failed_ports + [item|string + '/udp'] }}"
+      loop: "{{ firewall_ports }}"
+      when: not firewall_service_available
+
+    - name: Display UDP ports configuration result
+      ansible.builtin.debug:
+        msg: "UDP ports opened: {{ firewall_ports | join(', ') }}"
+      when: firewall_service_available and udp_ports_result.results | selectattr('failed', 'equalto', false) | list | length > 0
+  rescue:
+    - name: Handle UDP ports configuration failure
+      ansible.builtin.debug:
+        msg: "Warning: UDP ports configuration encountered issues. Firewalld may not be running."
+
+- name: Reload firewall configuration
+  block:
+    - name: Reload firewalld service
+      ansible.builtin.systemd:
+        name: firewalld
+        state: reloaded
+      register: firewall_reload
+      when: firewall_service_available
+
+    - name: Display firewall reload result
+      ansible.builtin.debug:
+        msg: "Firewall configuration reloaded"
+      when: firewall_service_available
+  rescue:
+    - name: Handle firewall reload failure
+      ansible.builtin.debug:
+        msg: "Warning: Firewall reload encountered issues (non-critical)"
+
+- name: Verify firewall configuration
+  block:
+    - name: Check firewall status
+      ansible.builtin.shell: firewall-cmd --list-all
+      register: firewall_status
+      changed_when: false
+      when: firewall_service_available
+      ignore_errors: yes
+
+    - name: Display firewall status
+      ansible.builtin.debug:
+        msg: "{{ firewall_status.stdout_lines }}"
+      when: firewall_service_available and firewall_status is succeeded
+  rescue:
+    - name: Handle firewall verification failure
+      ansible.builtin.debug:
+        msg: "Warning: Firewall verification encountered issues (non-critical)"
+
+- name: Report firewall configuration summary
+  block:
+    - name: Display firewall configuration summary
+      ansible.builtin.debug:
+        msg:
+          - "=== Firewall Configuration Summary ==="
+          - "Firewalld service available: {{ firewall_service_available }}"
+          - "{% if firewall_failed_ports | length > 0 %}❌ Failed ports: {{ firewall_failed_ports | join(', ') }}{% else %}✅ All ports configured successfully{% endif %}"
+          - "{% if not firewall_service_available %}⚠️  Warning: Firewalld service is not running. Firewall configuration was skipped.{% endif %}"
+          - "{% if firewall_failed_ports | length > 0 and firewall_service_available %}⚠️  Warning: Some ports failed to configure. Please check firewalld service status.{% endif %}"
+          - "{% if firewall_service_available and firewall_failed_ports | length == 0 %}✅ Firewall configuration completed successfully{% endif %}"
+
