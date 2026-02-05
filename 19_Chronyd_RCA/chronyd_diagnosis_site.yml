@@ -1,0 +1,283 @@
+---
+# =============================================================================
+# RHEL7/8/9 & CentOS7/8/9 Chronyd Service Fault Automatic Diagnosis
+#
+# This playbook performs a non-intrusive, read-only health check for chronyd:
+# - OS compatibility assertion (RHEL/CentOS 7/8/9 only)
+# - Package & systemd service status
+# - Chrony time synchronization status (sources, tracking, sourcestats, activity)
+# - System time configuration via timedatectl
+# - Chrony configuration existence and directory permissions
+# - Network connectivity to NTP server and firewalld state
+# - Optional service start attempt (block/rescue, non-fatal)
+# - Final consolidated text report via Jinja2 template
+#
+# Author: GCG AAP SSA Team + v3.01 Date 20260217
+#
+# License Type: End User License Agreement (EULA)
+# License Model: Subscription-based authorization
+# =============================================================================
+
+- name: "RHEL7/8/9 & CentOS7/8/9 Chronyd Service Fault Automatic Diagnosis"
+  hosts: "{{ target_group | default('time') }}"
+  become: true
+  gather_facts: true
+
+  pre_tasks:
+    - name: Assert supported operating system (RHEL/CentOS 7/8/9 only)
+      ansible.builtin.assert:
+        that:
+          - ansible_distribution in ['RedHat', 'CentOS']
+          - ansible_distribution_major_version in ['7', '8', '9']
+        fail_msg: "Unsupported operating system. This playbook is not available for the current OS."
+        quiet: true
+
+    - name: Assert required variables are defined
+      ansible.builtin.assert:
+        that:
+          - chronyd_service is defined
+          - chrony_package is defined
+          - ntp_server is defined
+          - report_output_path is defined
+        fail_msg: "Required variables (chronyd_service, chrony_package, ntp_server, report_output_path) must be defined."
+        quiet: true
+
+    - name: Debug OS and baseline variables
+      ansible.builtin.debug:
+        msg:
+          os_distribution: "{{ ansible_distribution }}"
+          os_version: "{{ ansible_distribution_version }}"
+          chronyd_service: "{{ chronyd_service }}"
+          chrony_package: "{{ chrony_package }}"
+          ntp_server: "{{ ntp_server }}"
+          report_output_path: "{{ report_output_path }}"
+
+  tasks:
+    # -----------------------------------------------------------------------
+    # System time configuration via timedatectl
+    # -----------------------------------------------------------------------
+    - name: Collect timedatectl status (non-fatal)
+      ansible.builtin.command: timedatectl status
+      register: timedatectl_status
+      changed_when: false
+      failed_when: false
+
+    - name: Collect timedatectl detailed info (non-fatal)
+      ansible.builtin.command: timedatectl show
+      register: timedatectl_show
+      changed_when: false
+      failed_when: false
+
+    - name: Debug timedatectl information
+      ansible.builtin.debug:
+        msg:
+          timedatectl_status_rc: "{{ timedatectl_status.rc | default('N/A') }}"
+          timedatectl_status_output: "{{ timedatectl_status.stdout | default('') }}"
+          timedatectl_show_rc: "{{ timedatectl_show.rc | default('N/A') }}"
+          timedatectl_show_output: "{{ timedatectl_show.stdout | default('') }}"
+
+    # -----------------------------------------------------------------------
+    # Package, service and process checks
+    # -----------------------------------------------------------------------
+    - name: Gather service facts (non-fatal)
+      ansible.builtin.service_facts:
+      failed_when: false
+
+    - name: Check if chrony package is installed (rpm -q)
+      ansible.builtin.command: "rpm -q {{ chrony_package }}"
+      register: rpm_query
+      changed_when: false
+      failed_when: false
+
+    - name: Check chronyd active state (systemctl is-active)
+      ansible.builtin.command: "systemctl is-active {{ chronyd_service }}"
+      register: svc_active
+      changed_when: false
+      failed_when: false
+
+    - name: Check chronyd enabled state (systemctl is-enabled)
+      ansible.builtin.command: "systemctl is-enabled {{ chronyd_service }}"
+      register: svc_enabled
+      changed_when: false
+      failed_when: false
+
+    - name: List chronyd processes (non-fatal)
+      ansible.builtin.command: "ps -eo pid,comm,args | grep -E '[/ ]chronyd( |$)' || true"
+      register: chronyd_ps
+      changed_when: false
+      failed_when: false
+
+    - name: Debug package, service and process status
+      ansible.builtin.debug:
+        msg:
+          chrony_package_installed: "{{ 'yes' if rpm_query.rc == 0 else 'no' }}"
+          chronyd_active: "{{ svc_active.stdout | default('unknown') }}"
+          chronyd_enabled: "{{ svc_enabled.stdout | default('unknown') }}"
+          rpm_query_rc: "{{ rpm_query.rc }}"
+          svc_active_rc: "{{ svc_active.rc | default('N/A') }}"
+          svc_enabled_rc: "{{ svc_enabled.rc | default('N/A') }}"
+          chronyd_ps_output: "{{ chronyd_ps.stdout | default('') }}"
+
+    # -----------------------------------------------------------------------
+    # Chrony time synchronization status
+    # -----------------------------------------------------------------------
+    - name: Collect chronyc sources (non-fatal)
+      ansible.builtin.command: "chronyc -n sources"
+      register: chrony_sources
+      changed_when: false
+      failed_when: false
+
+    - name: Collect chronyc tracking (non-fatal)
+      ansible.builtin.command: "chronyc -n tracking"
+      register: chrony_tracking
+      changed_when: false
+      failed_when: false
+
+    - name: Collect chronyc sourcestats (non-fatal)
+      ansible.builtin.command: "chronyc -n sourcestats"
+      register: chrony_sourcestats
+      changed_when: false
+      failed_when: false
+
+    - name: Collect chronyc activity (non-fatal)
+      ansible.builtin.command: "chronyc activity"
+      register: chrony_activity
+      changed_when: false
+      failed_when: false
+
+    - name: Debug chronyc outputs
+      ansible.builtin.debug:
+        msg:
+          sources_rc: "{{ chrony_sources.rc | default('N/A') }}"
+          tracking_rc: "{{ chrony_tracking.rc | default('N/A') }}"
+          sourcestats_rc: "{{ chrony_sourcestats.rc | default('N/A') }}"
+          activity_rc: "{{ chrony_activity.rc | default('N/A') }}"
+
+    # -----------------------------------------------------------------------
+    # Chrony configuration, version and directory permissions
+    # -----------------------------------------------------------------------
+    - name: Collect chronyd version (non-fatal)
+      ansible.builtin.command: "chronyd --version"
+      register: chronyd_version
+      changed_when: false
+      failed_when: false
+
+    - name: Check chrony configuration file existence
+      ansible.builtin.stat:
+        path: "{{ chrony_conf_path }}"
+      register: chrony_conf_stat
+
+    - name: Validate chrony configuration syntax (non-fatal)
+      ansible.builtin.command: "chronyd -t -f {{ chrony_conf_path }}"
+      register: chronyd_conf_check
+      changed_when: false
+      failed_when: false
+
+    - name: Check chrony log directory permissions
+      ansible.builtin.stat:
+        path: "{{ chrony_log_dir }}"
+      register: chrony_log_dir_stat
+
+    - name: Check chrony runtime directory permissions
+      ansible.builtin.stat:
+        path: "{{ chrony_run_dir }}"
+      register: chrony_run_dir_stat
+
+    - name: Debug chrony configuration and directory checks
+      ansible.builtin.debug:
+        msg:
+          chronyd_version_rc: "{{ chronyd_version.rc | default('N/A') }}"
+          chronyd_version_output: "{{ (chronyd_version.stdout + ' ' + chronyd_version.stderr) | trim }}"
+          chrony_conf_exists: "{{ chrony_conf_stat.stat.exists | default(false) }}"
+          chronyd_conf_check_rc: "{{ chronyd_conf_check.rc | default('N/A') }}"
+          chronyd_conf_check_output: "{{ (chronyd_conf_check.stdout + ' ' + chronyd_conf_check.stderr) | trim }}"
+          chrony_log_dir_mode: "{{ chrony_log_dir_stat.stat.mode | default('unknown') }}"
+          chrony_run_dir_mode: "{{ chrony_run_dir_stat.stat.mode | default('unknown') }}"
+
+    # -----------------------------------------------------------------------
+    # Network connectivity and firewalld status
+    # -----------------------------------------------------------------------
+    - name: Test connectivity to NTP server with ping (non-fatal)
+      ansible.builtin.command: "ping -c 3 {{ ntp_server }}"
+      register: ntp_ping
+      changed_when: false
+      failed_when: false
+
+    - name: Check firewalld state (if present)
+      ansible.builtin.command: "systemctl is-active firewalld"
+      register: firewalld_state
+      changed_when: false
+      failed_when: false
+
+    - name: List firewalld allowed services (non-fatal)
+      ansible.builtin.command: "firewall-cmd --list-services"
+      register: firewalld_services
+      changed_when: false
+      failed_when: false
+
+    - name: List firewalld open ports (non-fatal)
+      ansible.builtin.command: "firewall-cmd --list-ports"
+      register: firewalld_ports
+      changed_when: false
+      failed_when: false
+
+    - name: Debug network connectivity and firewall
+      ansible.builtin.debug:
+        msg:
+          ntp_ping_rc: "{{ ntp_ping.rc | default('N/A') }}"
+          firewalld_state: "{{ firewalld_state.stdout | default('unknown') }}"
+          firewalld_services: "{{ firewalld_services.stdout | default('') }}"
+          firewalld_ports: "{{ firewalld_ports.stdout | default('') }}"
+
+    # -----------------------------------------------------------------------
+    # Optional service start attempt (non-fatal, controlled by variable)
+    # -----------------------------------------------------------------------
+    - block:
+        - name: Optionally attempt to start chronyd service (non-fatal)
+          ansible.builtin.service:
+            name: "{{ chronyd_service }}"
+            state: started
+          when: attempt_service_start | default(false) | bool
+          register: chronyd_start_attempt
+      rescue:
+        - name: Debug service start failure (captured in block/rescue)
+          ansible.builtin.debug:
+            msg: "Attempt to start {{ chronyd_service }} failed, but execution will continue for diagnostics."
+      always:
+        - name: Debug chronyd start attempt result
+          ansible.builtin.debug:
+            msg:
+              attempt_service_start: "{{ attempt_service_start | default(false) | bool }}"
+              chronyd_start_changed: "{{ chronyd_start_attempt.changed | default(false) }}"
+              chronyd_start_failed: "{{ chronyd_start_attempt.failed | default(false) }}"
+
+    # -----------------------------------------------------------------------
+    # Logs and journal collection (non-fatal)
+    # -----------------------------------------------------------------------
+    - name: Collect recent journal entries for chronyd service
+      ansible.builtin.command: "journalctl -u {{ chronyd_service }} -n {{ collect_journal_lines | default(200) }}"
+      register: chronyd_journal
+      changed_when: false
+      failed_when: false
+
+    - name: Debug journal collection status
+      ansible.builtin.debug:
+        msg:
+          journal_rc: "{{ chronyd_journal.rc | default('N/A') }}"
+
+    # -----------------------------------------------------------------------
+    # Final report generation
+    # -----------------------------------------------------------------------
+    - name: Render consolidated Chronyd diagnosis report
+      ansible.builtin.template:
+        src: templates/chronyd_diagnosis_report.j2
+        dest: "{{ report_output_path }}"
+        owner: root
+        group: root
+        mode: "0644"
+
+    - name: Debug final report path
+      ansible.builtin.debug:
+        msg: "Chronyd diagnosis report has been generated at: {{ report_output_path }}"
+
+

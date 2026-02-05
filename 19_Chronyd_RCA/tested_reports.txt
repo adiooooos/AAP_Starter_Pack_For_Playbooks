@@ -1,0 +1,143 @@
+ ==================== RHEL7/8/9 & CentOS7/8/9 Chronyd Diagnosis Report ====================
+ Generated at: 2026-02-05T09:42:07Z
+ Target host: Test-RHEL-7.9-1
+ 
+ [Basic Information]
+ - OS: RedHat 7.9
+ - Kernel: 3.10.0-1160.119.1.el7.x86_64
+ 
+ [Package and Service Status]
+ - chrony package installed: yes
+ - systemd active state: active
+ - systemd enabled state: enabled
+ - chronyd processes:
+ 
+ 
+ [Chrony Time Synchronization Status]
+ - chronyc sources:
+ 210 Number of sources = 7
+MS Name/IP address         Stratum Poll Reach LastRx Last sample               
+===============================================================================
+^+ 10.2.32.38                    2  10   377   801  +1948us[+1948us] +/-  135ms
+^+ 10.2.32.37                    2  10   377   224  +2055us[+2055us] +/-  132ms
+^+ 10.11.160.238                 2  10   377   548  -8229us[-8229us] +/-  157ms
+^+ 45.55.126.202                 2  10   357   329  -1938us[-1938us] +/-  117ms
+^+ 141.11.228.173                2  10   277    10  -2021us[-2021us] +/-  114ms
+^+ 173.255.230.96                2  10   353   486    -10ms[  -10ms] +/-  142ms
+^* 104.152.220.5                 2  10   360   92m  +4554us[+4284us] +/-  107ms
+ 
+ - chronyc tracking:
+ Reference ID    : 6898DC05 (104.152.220.5)
+Stratum         : 3
+Ref time (UTC)  : Thu Feb 05 08:09:46 2026
+System time     : 0.000673848 seconds fast of NTP time
+Last offset     : -0.000270075 seconds
+RMS offset      : 0.000262263 seconds
+Frequency       : 17.465 ppm slow
+Residual freq   : +0.001 ppm
+Skew            : 0.046 ppm
+Root delay      : 0.202353358 seconds
+Root dispersion : 0.008226335 seconds
+Update interval : 1042.3 seconds
+Leap status     : Normal
+ 
+ - chronyc sourcestats:
+ 210 Number of sources = 7
+Name/IP Address            NP  NR  Span  Frequency  Freq Skew  Offset  Std Dev
+==============================================================================
+10.2.32.38                 13  10  206m     +0.113      0.680  +2397us  2118us
+10.2.32.37                 27  12  447m     -0.128      0.199   +686us  2122us
+10.11.160.238              14  11  223m     -0.062      0.426    -10ms  1441us
+45.55.126.202               9   5  171m     +0.444      1.833   +629us  3686us
+141.11.228.173             28  14  535m     +0.041      0.126  +1614us  1727us
+173.255.230.96             43  26   13h     +0.031      0.107   -427us  2699us
+104.152.220.5              33  20   10h     +0.022      0.078  +8878us  1340us
+ 
+ - chronyc activity:
+ 200 OK
+7 sources online
+0 sources offline
+0 sources doing burst (return to online)
+0 sources doing burst (return to offline)
+0 sources with unknown address
+ 
+ [System Time Configuration]
+ - timedatectl status:
+       Local time: Thu 2026-02-05 17:42:10 CST
+  Universal time: Thu 2026-02-05 09:42:10 UTC
+        RTC time: Thu 2026-02-05 09:42:10
+       Time zone: Asia/Shanghai (CST, +0800)
+     NTP enabled: yes
+NTP synchronized: yes
+ RTC in local TZ: no
+      DST active: n/a
+ 
+ - timedatectl show:
+ 
+ 
+ [Chrony Configuration and Directories]
+ - chrony.conf path: /etc/chrony.conf
+ - chrony.conf exists: True
+ - chronyd --version:
+ chronyd (chrony) version 3.4 (+CMDMON +NTP +REFCLOCK +RTC +PRIVDROP +SCFILTER +SIGND +ASYNCDNS +SECHASH +IPV6 +DEBUG)
+ - chronyd configuration check (chronyd -t -f /etc/chrony.conf):
+   rc=1
+   output:
+   2026-02-05T09:42:48Z Fatal error : Invalid argument -f
+ - chrony log directory (/var/log/chrony) mode: 0755
+ - chrony runtime directory (/run/chrony) mode: 0750
+ 
+ [Network Connectivity and Firewall]
+ - NTP server: pool.ntp.org
+ - ping result:
+ PING pool.ntp.org (129.250.35.250) 56(84) bytes of data.
+64 bytes from x.ns.gin.ntt.net (129.250.35.250): icmp_seq=1 ttl=54 time=132 ms
+64 bytes from x.ns.gin.ntt.net (129.250.35.250): icmp_seq=2 ttl=54 time=135 ms
+64 bytes from x.ns.gin.ntt.net (129.250.35.250): icmp_seq=3 ttl=54 time=133 ms
+
+--- pool.ntp.org ping statistics ---
+3 packets transmitted, 3 received, 0% packet loss, time 2001ms
+rtt min/avg/max/mdev = 132.745/133.588/135.001/1.048 ms
+ - firewalld state: unknown
+ - firewalld services: 
+ - firewalld ports: 
+ 
+ [Recent journalctl Entries for chronyd]
+ -- Logs begin at Sat 2025-08-09 13:01:01 CST, end at Thu 2026-02-05 17:43:12 CST. --
+Sep 05 20:07:25 test-rhel-7.9-1 chronyd[769]: Can't synchronise: no selectable sources
+Sep 12 15:52:58 test-rhel-7.9-1 chronyd[769]: Selected source 44.190.5.123
+Sep 12 15:52:58 test-rhel-7.9-1 chronyd[769]: Source 44.190.5.123 replaced with 2603:c020:0:8369::bad:beef
+Sep 12 15:52:59 test-rhel-7.9-1 chronyd[769]: Selected source 10.2.32.38
+Sep 12 17:02:06 test-rhel-7.9-1 chronyd[769]: Selected source 104.152.220.5
+Sep 12 17:53:10 test-rhel-7.9-1 chronyd[769]: Source 2603:c020:0:8369::bad:beef replaced with 23.155.72.147
+Sep 12 19:02:18 test-rhel-7.9-1 chronyd[769]: Source 23.155.72.147 replaced with 2606:4700:f1::123
+Sep 12 21:37:30 test-rhel-7.9-1 chronyd[769]: Source 2606:4700:f1::123 replaced with 173.255.230.96
+Dec 04 02:31:09 test-rhel-7.9-1 chronyd[769]: Source 66.59.198.178 replaced with 170.187.147.56
+Dec 07 20:10:53 test-rhel-7.9-1 chronyd[769]: Selected source 141.11.228.173
+Dec 08 04:31:50 test-rhel-7.9-1 chronyd[769]: Selected source 104.152.220.5
+Dec 09 03:46:12 test-rhel-7.9-1 chronyd[769]: Selected source 141.11.228.173
+Dec 09 09:31:07 test-rhel-7.9-1 chronyd[769]: Selected source 104.152.220.5
+Dec 15 00:54:54 test-rhel-7.9-1 chronyd[769]: Source 170.187.147.56 replaced with 205.233.73.201
+Dec 15 04:22:12 test-rhel-7.9-1 chronyd[769]: Selected source 205.233.73.201
+Dec 23 13:48:15 test-rhel-7.9-1 chronyd[769]: Selected source 104.152.220.5
+Dec 25 14:06:35 test-rhel-7.9-1 chronyd[769]: Selected source 205.233.73.201
+Jan 09 06:24:38 test-rhel-7.9-1 chronyd[769]: Selected source 104.152.220.5
+Jan 10 13:01:52 test-rhel-7.9-1 chronyd[769]: Selected source 205.233.73.201
+Jan 11 04:23:33 test-rhel-7.9-1 chronyd[769]: Selected source 104.152.220.5
+Jan 12 00:48:05 test-rhel-7.9-1 chronyd[769]: Selected source 205.233.73.201
+Jan 15 16:44:10 test-rhel-7.9-1 chronyd[769]: Selected source 104.152.220.5
+Jan 16 05:28:32 test-rhel-7.9-1 chronyd[769]: Selected source 205.233.73.201
+Jan 17 08:57:18 test-rhel-7.9-1 chronyd[769]: Selected source 104.152.220.5
+Feb 04 14:36:40 test-rhel-7.9-1 chronyd[769]: Source 205.233.73.201 replaced with 45.55.126.202
+ 
+ [Common Troubleshooting Hints]
+ - Service not running: If systemd active state is not "active", check service configuration, dependencies and logs.
+ - No time sources: If "chronyc sources" shows no usable sources, verify NTP server configuration and network connectivity.
+ - Large time offset: If "chronyc tracking" reports large offsets, consider manual synchronization or investigate upstream NTP servers.
+ - Configuration errors: Non-zero return code from "chronyd -t" usually indicates syntax or path issues in chrony.conf.
+ - Network connectivity: If ping to the NTP server fails, check routing, DNS, and firewall rules.
+ - Permissions: Incorrect permissions on /var/log/chrony or /run/chrony may prevent chronyd from writing logs or runtime data.
+ - Time zone: Incorrect time zone configuration can lead to misleading timestamps in logs and monitoring systems.
+ 
+ ===============================================================================
+ 

@@ -1,0 +1,27 @@
+---
+# Global Variables - Chronyd Time Synchronization Diagnosis
+# Author: GCG AAP SSA Team + v3.01 Date 20260217
+
+# Target host group name (must match inventory)
+target_group: time
+
+# Service and package configuration
+chronyd_service: chronyd
+chrony_package: chrony
+
+# NTP server configuration
+ntp_server: pool.ntp.org
+
+# Paths and directories
+chrony_conf_path: /etc/chrony.conf
+chrony_log_dir: /var/log/chrony
+chrony_run_dir: /run/chrony
+
+# Log and report configuration
+collect_journal_lines: 200
+report_output_path: /root/chronyd_diagnosis_report.txt
+
+# Optional service start attempt
+# Default: false (analysis-only, no configuration changes)
+attempt_service_start: false
+

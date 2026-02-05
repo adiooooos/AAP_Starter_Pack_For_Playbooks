@@ -1,0 +1,173 @@
+[root@aap25 19_Chronyd_RCA]# ansible-playbook chronyd_diagnosis_site.yml -i inventory
+
+PLAY [RHEL7/8/9 & CentOS7/8/9 Chronyd Service Fault Automatic Diagnosis] ***********************************************************************************************
+
+TASK [Gathering Facts] *************************************************************************************************************************************************
+ok: [Test-RHEL-7.9-1]
+
+TASK [Assert supported operating system (RHEL/CentOS 7/8/9 only)] ******************************************************************************************************
+ok: [Test-RHEL-7.9-1]
+
+TASK [Assert required variables are defined] ***************************************************************************************************************************
+ok: [Test-RHEL-7.9-1]
+
+TASK [Debug OS and baseline variables] *********************************************************************************************************************************
+ok: [Test-RHEL-7.9-1] => {
+    "msg": {
+        "chrony_package": "chrony",
+        "chronyd_service": "chronyd",
+        "ntp_server": "pool.ntp.org",
+        "os_distribution": "RedHat",
+        "os_version": "7.9",
+        "report_output_path": "/root/chronyd_diagnosis_report.txt"
+    }
+}
+
+TASK [Collect timedatectl status (non-fatal)] **************************************************************************************************************************
+ok: [Test-RHEL-7.9-1]
+
+TASK [Collect timedatectl detailed info (non-fatal)] *******************************************************************************************************************
+ok: [Test-RHEL-7.9-1]
+
+TASK [Debug timedatectl information] ***********************************************************************************************************************************
+ok: [Test-RHEL-7.9-1] => {
+    "msg": {
+        "timedatectl_show_output": "",
+        "timedatectl_show_rc": "1",
+        "timedatectl_status_output": "      Local time: Thu 2026-02-05 17:42:10 CST\n  Universal time: Thu 2026-02-05 09:42:10 UTC\n        RTC time: Thu 2026-02-05 09:42:10\n       Time zone: Asia/Shanghai (CST, +0800)\n     NTP enabled: yes\nNTP synchronized: yes\n RTC in local TZ: no\n      DST active: n/a",
+        "timedatectl_status_rc": "0"
+    }
+}
+
+TASK [Gather service facts (non-fatal)] ********************************************************************************************************************************
+ok: [Test-RHEL-7.9-1]
+
+TASK [Check if chrony package is installed (rpm -q)] *******************************************************************************************************************
+ok: [Test-RHEL-7.9-1]
+
+TASK [Check chronyd active state (systemctl is-active)] ****************************************************************************************************************
+ok: [Test-RHEL-7.9-1]
+
+TASK [Check chronyd enabled state (systemctl is-enabled)] **************************************************************************************************************
+ok: [Test-RHEL-7.9-1]
+
+TASK [List chronyd processes (non-fatal)] ******************************************************************************************************************************
+ok: [Test-RHEL-7.9-1]
+
+TASK [Debug package, service and process status] ***********************************************************************************************************************
+ok: [Test-RHEL-7.9-1] => {
+    "msg": {
+        "chrony_package_installed": "yes",
+        "chronyd_active": "active",
+        "chronyd_enabled": "enabled",
+        "chronyd_ps_output": "",
+        "rpm_query_rc": "0",
+        "svc_active_rc": "0",
+        "svc_enabled_rc": "0"
+    }
+}
+
+TASK [Collect chronyc sources (non-fatal)] *****************************************************************************************************************************
+ok: [Test-RHEL-7.9-1]
+
+TASK [Collect chronyc tracking (non-fatal)] ****************************************************************************************************************************
+ok: [Test-RHEL-7.9-1]
+
+TASK [Collect chronyc sourcestats (non-fatal)] *************************************************************************************************************************
+ok: [Test-RHEL-7.9-1]
+
+TASK [Collect chronyc activity (non-fatal)] ****************************************************************************************************************************
+ok: [Test-RHEL-7.9-1]
+
+TASK [Debug chronyc outputs] *******************************************************************************************************************************************
+ok: [Test-RHEL-7.9-1] => {
+    "msg": {
+        "activity_rc": "0",
+        "sources_rc": "0",
+        "sourcestats_rc": "0",
+        "tracking_rc": "0"
+    }
+}
+
+TASK [Collect chronyd version (non-fatal)] *****************************************************************************************************************************
+ok: [Test-RHEL-7.9-1]
+
+TASK [Check chrony configuration file existence] ***********************************************************************************************************************
+ok: [Test-RHEL-7.9-1]
+
+TASK [Validate chrony configuration syntax (non-fatal)] ****************************************************************************************************************
+ok: [Test-RHEL-7.9-1]
+
+TASK [Check chrony log directory permissions] **************************************************************************************************************************
+ok: [Test-RHEL-7.9-1]
+
+TASK [Check chrony runtime directory permissions] **********************************************************************************************************************
+ok: [Test-RHEL-7.9-1]
+
+TASK [Debug chrony configuration and directory checks] *****************************************************************************************************************
+ok: [Test-RHEL-7.9-1] => {
+    "msg": {
+        "chrony_conf_exists": true,
+        "chrony_log_dir_mode": "0755",
+        "chrony_run_dir_mode": "0750",
+        "chronyd_conf_check_output": "2026-02-05T09:42:48Z Fatal error : Invalid argument -f",
+        "chronyd_conf_check_rc": "1",
+        "chronyd_version_output": "chronyd (chrony) version 3.4 (+CMDMON +NTP +REFCLOCK +RTC +PRIVDROP +SCFILTER +SIGND +ASYNCDNS +SECHASH +IPV6 +DEBUG)",
+        "chronyd_version_rc": "0"
+    }
+}
+
+TASK [Test connectivity to NTP server with ping (non-fatal)] ***********************************************************************************************************
+ok: [Test-RHEL-7.9-1]
+
+TASK [Check firewalld state (if present)] ******************************************************************************************************************************
+ok: [Test-RHEL-7.9-1]
+
+TASK [List firewalld allowed services (non-fatal)] *********************************************************************************************************************
+ok: [Test-RHEL-7.9-1]
+
+TASK [List firewalld open ports (non-fatal)] ***************************************************************************************************************************
+ok: [Test-RHEL-7.9-1]
+
+TASK [Debug network connectivity and firewall] *************************************************************************************************************************
+ok: [Test-RHEL-7.9-1] => {
+    "msg": {
+        "firewalld_ports": "",
+        "firewalld_services": "",
+        "firewalld_state": "unknown",
+        "ntp_ping_rc": "0"
+    }
+}
+
+TASK [Optionally attempt to start chronyd service (non-fatal)] *********************************************************************************************************
+skipping: [Test-RHEL-7.9-1]
+
+TASK [Debug chronyd start attempt result] ******************************************************************************************************************************
+ok: [Test-RHEL-7.9-1] => {
+    "msg": {
+        "attempt_service_start": false,
+        "chronyd_start_changed": false,
+        "chronyd_start_failed": false
+    }
+}
+
+TASK [Collect recent journal entries for chronyd service] **************************************************************************************************************
+ok: [Test-RHEL-7.9-1]
+
+TASK [Debug journal collection status] *********************************************************************************************************************************
+ok: [Test-RHEL-7.9-1] => {
+    "msg": {
+        "journal_rc": "0"
+    }
+}
+
+TASK [Render consolidated Chronyd diagnosis report] ********************************************************************************************************************
+changed: [Test-RHEL-7.9-1]
+
+TASK [Debug final report path] *****************************************************************************************************************************************
+ok: [Test-RHEL-7.9-1] => {
+    "msg": "Chronyd diagnosis report has been generated at: /root/chronyd_diagnosis_report.txt"
+}
+
+PLAY RECAP *************************************************************************************************************************************************************
+Test-RHEL-7.9-1            : ok=34   changed=1    unreachable=0    failed=0    skipped=1    rescued=0    ignored=0
