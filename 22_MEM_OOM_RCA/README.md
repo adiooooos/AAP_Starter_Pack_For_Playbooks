@@ -22,6 +22,12 @@ The design follows Red Hat Ansible Automation Platform best practices:
 - Uses `debug` tasks after each functional section for easier troubleshooting.
 - Keeps checks **non-fatal** wherever possible so the playbook continues gathering data even if some steps fail (e.g., missing `sysstat` package for SAR, missing logs).
 
+### tested reports
+<img width="2510" height="1333" alt="image" src="https://github.com/user-attachments/assets/3149a537-1dbb-4b78-969a-b1d5cfb413a5" />
+...
+<img width="2510" height="1333" alt="image" src="https://github.com/user-attachments/assets/12f2160b-7b66-4f55-9e78-5890fdfff73e" />
+
+
 ---
 
 ### 2. File Layout
@@ -288,4 +294,5 @@ The generated reports can be integrated with:
 ---
 
 For questions or issues, please contact the GCG AAP SSA Team.
+
 
