@@ -1,4 +1,4 @@
-## Scenario 16 – SSH Connection Troubleshooting & Auto‑Remediation
+## SSH Connection Troubleshooting & Auto‑Remediation
 
 This scenario is part of the AAP Starter Pack and demonstrates how to automatically diagnose and remediate common SSH connectivity issues on RHEL/CentOS 7/8/9 using Ansible Automation Platform best practices.  
 The playbook focuses on safety, observability, and repeatability: strong OS and input validation, idempotent tasks, detailed reports, and clear client‑side guidance.
@@ -110,5 +110,6 @@ On a successful run, you should observe:
 - A `ssh_network_monitor.log` file (once you start the monitoring script in the background) tracking ongoing health checks.
 
 If a change to the hosts file fails, the playbook uses a `block`/`rescue` structure to log a warning and point you to the backup created by `ansible.builtin.lineinfile`, helping you perform a safe manual rollback if necessary.
+
 
 
