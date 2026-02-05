@@ -1,0 +1,226 @@
+---
+# =============================================================================
+# RHEL7/8/9 & CentOS7/8/9 High Memory Utilization Automatic Diagnosis
+#
+# This playbook performs a non-intrusive, read-only memory utilization
+# diagnosis for RHEL/CentOS 7/8/9 servers:
+# - OS compatibility assertion (RHEL/CentOS 7/8/9 only)
+# - Memory overview and detailed memory information collection
+# - Process-level memory usage analysis
+# - System performance statistics
+# - Hardware memory information
+# - Final consolidated text report per host via Jinja2 template
+# - Centralized report aggregation on control node
+#
+# Author: GCG AAP SSA Team + v3.01 Date 20260217
+#
+# License Type: End User License Agreement (EULA)
+# License Model: Subscription-based authorization
+# =============================================================================
+
+- name: "RHEL7/8/9 & CentOS7/8/9 High Memory Utilization Automatic Diagnosis"
+  hosts: "{{ target_group | default('memory_servers') }}"
+  become: true
+  gather_facts: true
+
+  vars:
+    remote_report_dir: "/var/tmp/memory_diagnosis"
+    remote_report_file: "memory_report.txt"
+    centralized_report_dir: "/var/tmp/memory_diagnosis_centralized"
+    centralized_report_file: "centralized_memory_report.txt"
+
+  pre_tasks:
+    - name: Assert supported operating system (RHEL/CentOS 7/8/9 only)
+      ansible.builtin.assert:
+        that:
+          - ansible_distribution in ['RedHat', 'CentOS']
+          - ansible_distribution_major_version in ['7', '8', '9']
+        fail_msg: "Unsupported operating system. This playbook is not available for the current OS."
+        quiet: true
+
+    - name: Assert required variables are defined
+      ansible.builtin.assert:
+        that:
+          - remote_report_dir is defined
+          - remote_report_file is defined
+          - centralized_report_dir is defined
+          - centralized_report_file is defined
+        fail_msg: >-
+          Required variables (remote_report_dir, remote_report_file,
+          centralized_report_dir, centralized_report_file) must be defined.
+        quiet: true
+
+    - name: Debug OS and baseline variables
+      ansible.builtin.debug:
+        msg:
+          os_distribution: "{{ ansible_distribution }}"
+          os_version: "{{ ansible_distribution_version }}"
+          remote_report_dir: "{{ remote_report_dir }}"
+          remote_report_file: "{{ remote_report_file }}"
+          centralized_report_dir: "{{ centralized_report_dir }}"
+          centralized_report_file: "{{ centralized_report_file }}"
+
+  tasks:
+    # -----------------------------------------------------------------------
+    # Create remote report directory
+    # -----------------------------------------------------------------------
+    - name: Ensure remote report directory exists
+      ansible.builtin.file:
+        path: "{{ remote_report_dir }}"
+        state: directory
+        owner: root
+        group: root
+        mode: '0755'
+
+    # -----------------------------------------------------------------------
+    # Memory Overview Checks
+    # -----------------------------------------------------------------------
+    - name: Check memory usage with free -t -m
+      ansible.builtin.shell: free -t -m
+      register: free_mem
+      changed_when: false
+      failed_when: false
+
+    - name: Check memory info from /proc/meminfo
+      ansible.builtin.shell: cat /proc/meminfo
+      register: meminfo
+      changed_when: false
+      failed_when: false
+
+    - name: Check virtual memory statistics with vmstat -s
+      ansible.builtin.shell: vmstat -s
+      register: vmstat_out
+      changed_when: false
+      failed_when: false
+
+    - name: Debug memory overview collection status
+      ansible.builtin.debug:
+        msg:
+          free_mem_rc: "{{ free_mem.rc | default('N/A') }}"
+          meminfo_rc: "{{ meminfo.rc | default('N/A') }}"
+          vmstat_out_rc: "{{ vmstat_out.rc | default('N/A') }}"
+
+    # -----------------------------------------------------------------------
+    # Process Analysis
+    # -----------------------------------------------------------------------
+    - name: Check per-process memory and CPU usage with top (batch mode)
+      ansible.builtin.shell: top -b -n 1
+      register: top_out
+      changed_when: false
+      failed_when: false
+
+    - name: Check per-process memory usage with ps aux
+      ansible.builtin.shell: ps aux
+      register: ps_out
+      changed_when: false
+      failed_when: false
+
+    - name: Check hierarchical process memory usage with ps auxH
+      ansible.builtin.shell: ps auxH
+      register: ps_h_out
+      changed_when: false
+      failed_when: false
+
+    - name: Debug process analysis collection status
+      ansible.builtin.debug:
+        msg:
+          top_out_rc: "{{ top_out.rc | default('N/A') }}"
+          ps_out_rc: "{{ ps_out.rc | default('N/A') }}"
+          ps_h_out_rc: "{{ ps_h_out.rc | default('N/A') }}"
+
+    # -----------------------------------------------------------------------
+    # System Performance Analysis
+    # -----------------------------------------------------------------------
+    - name: Check system performance statistics with sar -A
+      ansible.builtin.shell: sar -A 1 1
+      register: sar_out
+      changed_when: false
+      failed_when: false
+
+    - name: Check disk I/O statistics with iostat -x
+      ansible.builtin.shell: iostat -x
+      register: iostat_out
+      changed_when: false
+      failed_when: false
+
+    - name: Check open files with lsof
+      ansible.builtin.shell: lsof
+      register: lsof_out
+      changed_when: false
+      failed_when: false
+
+    - name: Debug system performance collection status
+      ansible.builtin.debug:
+        msg:
+          sar_out_rc: "{{ sar_out.rc | default('N/A') }}"
+          iostat_out_rc: "{{ iostat_out.rc | default('N/A') }}"
+          lsof_out_rc: "{{ lsof_out.rc | default('N/A') }}"
+
+    # -----------------------------------------------------------------------
+    # Hardware and Filesystem Information
+    # -----------------------------------------------------------------------
+    - name: Check mounted filesystem info with df -hT
+      ansible.builtin.shell: df -hT
+      register: df_out
+      changed_when: false
+      failed_when: false
+
+    - name: Check installed memory hardware with dmidecode
+      ansible.builtin.shell: dmidecode -t memory
+      register: dmidecode_mem
+      changed_when: false
+      failed_when: false
+
+    - name: Debug hardware and filesystem collection status
+      ansible.builtin.debug:
+        msg:
+          df_out_rc: "{{ df_out.rc | default('N/A') }}"
+          dmidecode_mem_rc: "{{ dmidecode_mem.rc | default('N/A') }}"
+
+    # -----------------------------------------------------------------------
+    # Assemble Report on Each Host
+    # -----------------------------------------------------------------------
+    - name: Assemble memory diagnosis report on each host
+      ansible.builtin.template:
+        src: templates/memory_diagnosis_report.j2
+        dest: "{{ remote_report_dir }}/{{ remote_report_file }}"
+        owner: root
+        group: root
+        mode: "0644"
+
+    - name: Debug remote report path
+      ansible.builtin.debug:
+        msg: "Memory diagnosis report has been generated at: {{ remote_report_dir }}/{{ remote_report_file }}"
+
+    # -----------------------------------------------------------------------
+    # Centralized Report
+    # -----------------------------------------------------------------------
+    - name: Ensure centralized report directory exists on control node
+      delegate_to: localhost
+      ansible.builtin.file:
+        path: "{{ centralized_report_dir }}"
+        state: directory
+        owner: "{{ ansible_user_id | default('root') }}"
+        group: "{{ ansible_user_gid | default('root') }}"
+        mode: '0755'
+
+    - name: Fetch individual host reports to control node
+      ansible.builtin.fetch:
+        src: "{{ remote_report_dir }}/{{ remote_report_file }}"
+        dest: "{{ centralized_report_dir }}/{{ inventory_hostname }}_{{ remote_report_file }}"
+        flat: yes
+      failed_when: false
+
+    - name: Assemble centralized memory report on control node
+      delegate_to: localhost
+      ansible.builtin.shell: |
+        cat {{ centralized_report_dir }}/*{{ remote_report_file }} > {{ centralized_report_dir }}/{{ centralized_report_file }} 2>/dev/null || true
+      args:
+        executable: /bin/bash
+      failed_when: false
+
+    - name: Debug centralized report location
+      delegate_to: localhost
+      ansible.builtin.debug:
+        msg: "Centralized memory utilization report generated at {{ centralized_report_dir }}/{{ centralized_report_file }}"
+

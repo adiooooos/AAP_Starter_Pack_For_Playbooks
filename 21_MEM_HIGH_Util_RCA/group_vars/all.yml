@@ -1,0 +1,18 @@
+---
+# Global variables for high memory utilization automatic diagnosis
+
+# Target host group for this scenario (must exist in inventory)
+target_group: memory_servers
+
+# Remote report directory (on each target host)
+remote_report_dir: "/var/tmp/memory_diagnosis"
+
+# Remote report filename
+remote_report_file: "memory_report.txt"
+
+# Centralized report directory (on control node)
+centralized_report_dir: "/var/tmp/memory_diagnosis_centralized"
+
+# Centralized report filename
+centralized_report_file: "centralized_memory_report.txt"
+

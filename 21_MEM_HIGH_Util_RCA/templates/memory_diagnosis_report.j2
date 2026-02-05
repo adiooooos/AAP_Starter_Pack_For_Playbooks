@@ -1,0 +1,212 @@
+======== High Memory Utilization Diagnosis Report =======
+Hostname: {{ inventory_hostname }}
+Diagnosis Time: {{ ansible_date_time.date }} {{ ansible_date_time.time }}
+OS: {{ ansible_distribution }} {{ ansible_distribution_version }} ({{ ansible_architecture }})
+IP Address: {{ ansible_default_ipv4.address | default(ansible_host | default('N/A')) }}
+===============================================================================
+
+========== Memory Usage Overview (free -t -m) ==========
+[Description] Display system memory usage, including total, used, free, cache, etc.
+[Key Parameters Explanation]
+- total: Total system memory size
+- used: Used memory (including applications and system cache)
+- free: Completely free memory
+- shared: Shared memory (shared by multiple processes)
+- cache: Cache memory (can be released for applications)
+- available: Actually available memory (free + cache - non-releasable cache)
+{% if free_mem is defined and free_mem.stdout is defined %}
+{{ free_mem.stdout | default('N/A') }}
+{% else %}
+N/A - free command output not available
+{% endif %}
+
+========== Detailed Memory Information (/proc/meminfo) ==========
+[Description] Detailed system memory statistics, including various memory type usage
+[Key Parameters Explanation]
+- MemTotal: Total system memory
+- MemFree: Completely free memory
+- MemAvailable: Actually available memory (most important metric)
+- Buffers: Buffer memory (for block device cache)
+- Cached: Page cache (filesystem cache)
+- SwapTotal: Total swap partition size
+- SwapFree: Free swap partition
+- Active: Active memory (recently accessed)
+- Inactive: Inactive memory (can be reclaimed)
+- Dirty: Dirty pages (need to be written to disk)
+- Writeback: Pages being written back
+{% if meminfo is defined and meminfo.stdout is defined %}
+{{ meminfo.stdout | default('N/A') }}
+{% else %}
+N/A - /proc/meminfo output not available
+{% endif %}
+
+========== Virtual Memory Statistics (vmstat -s) ==========
+[Description] Detailed virtual memory statistics
+[Key Parameters Explanation]
+- pages paged in: Number of pages read from disk
+- pages paged out: Number of pages written to disk
+- pages swapped in: Number of pages read from swap partition
+- pages swapped out: Number of pages written to swap partition
+- page faults: Page faults (page fault interrupts)
+- major page faults: Major page faults (need to read from disk)
+{% if vmstat_out is defined and vmstat_out.stdout is defined %}
+{{ vmstat_out.stdout | default('N/A') }}
+{% else %}
+N/A - vmstat output not available
+{% endif %}
+
+========== Process Resource Usage (top) ==========
+[Description] Display processes consuming the most resources in the current system
+[Key Parameters Explanation]
+- PID: Process ID
+- USER: Process owner
+- %CPU: CPU usage percentage
+- %MEM: Memory usage percentage (relative to total memory)
+- VSZ: Virtual memory size
+- RSS: Physical memory usage
+- TTY: Terminal type
+- STAT: Process state (R=running, S=sleeping, Z=zombie, etc.)
+- START: Process start time
+- TIME: Cumulative CPU time
+- COMMAND: Process command
+{% if top_out is defined and top_out.stdout is defined %}
+{{ top_out.stdout | default('N/A') }}
+{% else %}
+N/A - top command output not available
+{% endif %}
+
+========== Disk I/O Statistics (iostat -x) ==========
+[Description] Disk I/O performance statistics, help determine if frequent swapping due to memory shortage exists
+[Key Parameters Explanation]
+- Device: Device name
+- rrqm/s: Number of merged read requests per second
+- wrqm/s: Number of merged write requests per second
+- r/s: Number of read requests per second
+- w/s: Number of write requests per second
+- rMB/s: Read data volume per second (MB)
+- wMB/s: Write data volume per second (MB)
+- avgrq-sz: Average request size
+- avgqu-sz: Average queue length
+- await: Average wait time (milliseconds)
+- r_await: Average wait time for read operations
+- w_await: Average wait time for write operations
+- %util: Device utilization
+{% if iostat_out is defined and iostat_out.stdout is defined %}
+{{ iostat_out.stdout | default('N/A') }}
+{% else %}
+N/A - iostat command output not available
+{% endif %}
+
+========== Process Memory Usage Details (ps aux) ==========
+[Description] Detailed memory usage of all processes
+[Key Parameters Explanation]
+- USER: Process owner
+- PID: Process ID
+- %CPU: CPU usage percentage
+- %MEM: Memory usage percentage
+- VSZ: Virtual memory size (KB)
+- RSS: Physical memory usage (KB)
+- TTY: Terminal
+- STAT: Process state
+- START: Start time
+- TIME: Cumulative CPU time
+- COMMAND: Command
+{% if ps_out is defined and ps_out.stdout is defined %}
+{{ ps_out.stdout | default('N/A') }}
+{% else %}
+N/A - ps aux command output not available
+{% endif %}
+
+========== Process Hierarchy Memory Usage (ps auxH) ==========
+[Description] Display process hierarchy, including parent and child process memory usage
+[Key Parameters Explanation]
+- Same as ps aux, but shows parent-child relationship of processes
+- Helps identify which process groups consume large amounts of memory
+{% if ps_h_out is defined and ps_h_out.stdout is defined %}
+{{ ps_h_out.stdout | default('N/A') }}
+{% else %}
+N/A - ps auxH command output not available
+{% endif %}
+
+========== System Performance Statistics (sar -A) ==========
+[Description] System activity report, including comprehensive performance data for CPU, memory, disk, network, etc.
+[Key Parameters Explanation]
+- CPU usage statistics
+- Memory usage statistics
+- Disk I/O statistics
+- Network statistics
+- System load statistics
+{% if sar_out is defined and sar_out.stdout is defined %}
+{{ sar_out.stdout | default('N/A') }}
+{% else %}
+N/A - sar command output not available (sysstat package may not be installed)
+{% endif %}
+
+========== Open Files List (lsof) ==========
+[Description] Display all open files and network connections in the system
+[Key Parameters Explanation]
+- COMMAND: Process that opened the file
+- PID: Process ID
+- USER: Process owner
+- FD: File descriptor
+- TYPE: File type
+- DEVICE: Device
+- SIZE/OFF: File size or offset
+- NODE: Node
+- NAME: Filename or network connection
+{% if lsof_out is defined and lsof_out.stdout is defined %}
+{{ lsof_out.stdout | default('N/A') }}
+{% else %}
+N/A - lsof command output not available
+{% endif %}
+
+========== Filesystem Usage (df -hT) ==========
+[Description] Display filesystem usage, check if disk space is insufficient
+[Key Parameters Explanation]
+- Filesystem: Filesystem name
+- Type: Filesystem type
+- Size: Total size
+- Used: Used space
+- Avail: Available space
+- Use%: Usage percentage
+- Mounted on: Mount point
+{% if df_out is defined and df_out.stdout is defined %}
+{{ df_out.stdout | default('N/A') }}
+{% else %}
+N/A - df command output not available
+{% endif %}
+
+========== Hardware Memory Information (dmidecode) ==========
+[Description] Display detailed hardware memory information
+[Key Parameters Explanation]
+- Memory Device: Memory device information
+- Size: Memory module size
+- Speed: Memory speed
+- Manufacturer: Manufacturer
+- Part Number: Part number
+- Serial Number: Serial number
+- Locator: Memory slot location
+{% if dmidecode_mem is defined and dmidecode_mem.stdout is defined %}
+{{ dmidecode_mem.stdout | default('N/A') }}
+{% else %}
+N/A - dmidecode command output not available (may require root privileges)
+{% endif %}
+
+========== Diagnostic Recommendations ==========
+[Memory Utilization Analysis Points]
+1. Check MemAvailable value, this is the most important available memory metric
+2. If MemAvailable is close to 0, it indicates severe memory shortage
+3. Check SwapTotal and SwapFree, if swap partition usage is high, it indicates insufficient physical memory
+4. Check %MEM column to identify processes consuming the most memory
+5. Check for memory leaks: continuous growth of process memory
+6. Observe disk I/O, frequent swapping will cause increased disk I/O
+
+[Common Issues and Solutions]
+1. Insufficient memory: Increase physical memory or optimize applications
+2. Memory leak: Restart related services or applications
+3. Excessive cache: Adjust kernel parameters or clear cache
+4. Frequent swapping: Optimize memory usage or increase physical memory
+
+===============================================================================
+Generated at: {{ ansible_date_time.iso8601 }}
+

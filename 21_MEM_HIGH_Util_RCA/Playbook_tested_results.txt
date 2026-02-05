@@ -1,0 +1,108 @@
+[root@aap25 21_MEM_HIGH_Util_RCA]# ansible-playbook -i inventory troubleshooting04_HignMemUsage.yml
+[DEPRECATION WARNING]: community.general.yaml has been deprecated. The plugin has been superseded by the the option `result_format=yaml` in callback plugin
+ansible.builtin.default from ansible-core 2.13 onwards. This feature will be removed from community.general in version 13.0.0. Deprecation warnings can be disabled by
+setting deprecation_warnings=False in ansible.cfg.
+
+PLAY [RHEL7/8/9 & CentOS7/8/9 High Memory Utilization Automatic Diagnosis] *********************************************************************************************
+
+TASK [Assert supported operating system (RHEL/CentOS 7/8/9 only)] ******************************************************************************************************
+ok: [Test-RHEL-7.9-1]
+
+TASK [Assert required variables are defined] ***************************************************************************************************************************
+ok: [Test-RHEL-7.9-1]
+
+TASK [Debug OS and baseline variables] *********************************************************************************************************************************
+ok: [Test-RHEL-7.9-1] =>
+  msg:
+    centralized_report_dir: /var/tmp/memory_diagnosis_centralized
+    centralized_report_file: centralized_memory_report.txt
+    os_distribution: RedHat
+    os_version: '7.9'
+    remote_report_dir: /var/tmp/memory_diagnosis
+    remote_report_file: memory_report.txt
+
+TASK [Ensure remote report directory exists] ***************************************************************************************************************************
+changed: [Test-RHEL-7.9-1]
+
+TASK [Check memory usage with free -t -m] ******************************************************************************************************************************
+ok: [Test-RHEL-7.9-1]
+
+TASK [Check memory info from /proc/meminfo] ****************************************************************************************************************************
+ok: [Test-RHEL-7.9-1]
+
+TASK [Check virtual memory statistics with vmstat -s] ******************************************************************************************************************
+ok: [Test-RHEL-7.9-1]
+
+TASK [Debug memory overview collection status] *************************************************************************************************************************
+ok: [Test-RHEL-7.9-1] =>
+  msg:
+    free_mem_rc: '0'
+    meminfo_rc: '0'
+    vmstat_out_rc: '0'
+
+TASK [Check per-process memory and CPU usage with top (batch mode)] ****************************************************************************************************
+ok: [Test-RHEL-7.9-1]
+
+TASK [Check per-process memory usage with ps aux] **********************************************************************************************************************
+ok: [Test-RHEL-7.9-1]
+
+TASK [Check hierarchical process memory usage with ps auxH] ************************************************************************************************************
+ok: [Test-RHEL-7.9-1]
+
+TASK [Debug process analysis collection status] ************************************************************************************************************************
+ok: [Test-RHEL-7.9-1] =>
+  msg:
+    ps_h_out_rc: '0'
+    ps_out_rc: '0'
+    top_out_rc: '0'
+
+TASK [Check system performance statistics with sar -A] *****************************************************************************************************************
+ok: [Test-RHEL-7.9-1]
+
+TASK [Check disk I/O statistics with iostat -x] ************************************************************************************************************************
+ok: [Test-RHEL-7.9-1]
+
+TASK [Check open files with lsof] **************************************************************************************************************************************
+ok: [Test-RHEL-7.9-1]
+
+TASK [Debug system performance collection status] **********************************************************************************************************************
+ok: [Test-RHEL-7.9-1] =>
+  msg:
+    iostat_out_rc: '0'
+    lsof_out_rc: '0'
+    sar_out_rc: '0'
+
+TASK [Check mounted filesystem info with df -hT] ***********************************************************************************************************************
+ok: [Test-RHEL-7.9-1]
+
+TASK [Check installed memory hardware with dmidecode] ******************************************************************************************************************
+ok: [Test-RHEL-7.9-1]
+
+TASK [Debug hardware and filesystem collection status] *****************************************************************************************************************
+ok: [Test-RHEL-7.9-1] =>
+  msg:
+    df_out_rc: '0'
+    dmidecode_mem_rc: '0'
+
+TASK [Assemble memory diagnosis report on each host] *******************************************************************************************************************
+changed: [Test-RHEL-7.9-1]
+
+TASK [Debug remote report path] ****************************************************************************************************************************************
+ok: [Test-RHEL-7.9-1] =>
+  msg: 'Memory diagnosis report has been generated at: /var/tmp/memory_diagnosis/memory_report.txt'
+
+TASK [Ensure centralized report directory exists on control node] ******************************************************************************************************
+changed: [Test-RHEL-7.9-1 -> localhost]
+
+TASK [Fetch individual host reports to control node] *******************************************************************************************************************
+changed: [Test-RHEL-7.9-1]
+
+TASK [Assemble centralized memory report on control node] **************************************************************************************************************
+changed: [Test-RHEL-7.9-1 -> localhost]
+
+TASK [Debug centralized report location] *******************************************************************************************************************************
+ok: [Test-RHEL-7.9-1 -> localhost] =>
+  msg: Centralized memory utilization report generated at /var/tmp/memory_diagnosis_centralized/centralized_memory_report.txt
+
+PLAY RECAP *************************************************************************************************************************************************************
+Test-RHEL-7.9-1            : ok=25   changed=5    unreachable=0    failed=0    skipped=0    rescued=0    ignored=0
