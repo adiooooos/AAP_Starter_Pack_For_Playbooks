@@ -1,0 +1,86 @@
+==================== RHEL7/8/9 & CentOS7/8/9 Nginx Diagnosis Report ====================
+Generated at: 2026-02-05T03:51:31Z
+Target host: Test-RHEL-7.9-1
+
+[Basic Information]
+- OS: RedHat 7.9
+- Kernel: 3.10.0-1160.119.1.el7.x86_64
+- SELinux mode: Disabled
+
+[Package and Service Status]
+- nginx package installed: yes
+- systemd active state: active
+- systemd enabled state: enabled
+
+[Configuration Syntax Check]
+- nginx -t: rc=0, output:
+nginx: the configuration file /etc/nginx/nginx.conf syntax is ok
+nginx: configuration file /etc/nginx/nginx.conf test is successful
+
+[Configuration and Directory Permissions]
+- nginx.conf path: /etc/nginx/nginx.conf
+- nginx.conf exists: True
+- nginx config directory (/etc/nginx) mode: 0755
+- nginx work directory (/var/lib/nginx) mode: 0770
+- nginx website directory (/usr/share/nginx/html) mode: 0755
+
+[Network Ports and Firewall]
+- Expected ports: 80, 443
+- ss -lntp (excerpt):
+State      Recv-Q Send-Q Local Address:Port               Peer Address:Port              
+LISTEN     0      64           *:2049                     *:*                  
+LISTEN     0      128          *:39300                    *:*                   users:(("rpc.statd",pid=20911,fd=9))
+LISTEN     0      64           *:39047                    *:*                  
+LISTEN     0      128          *:111                      *:*                   users:(("rpcbind",pid=20916,fd=8))
+LISTEN     0      128          *:20048                    *:*                   users:(("rpc.mountd",pid=20919,fd=8))
+LISTEN     0      128          *:80                       *:*                   users:(("nginx",pid=24897,fd=6),("nginx",pid=24896,fd=6),("nginx",pid=24895,fd=6))
+LISTEN     0      128          *:22                       *:*                   users:(("sshd",pid=1077,fd=3))
+LISTEN     0      10     127.0.0.1:25                       *:*                   users:(("sendmail",pid=1124,fd=4))
+LISTEN     0      64        [::]:2049                  [::]:*                  
+LISTEN     0      128       [::]:9090                  [::]:*                   users:(("node_exporter",pid=22349,fd=3))
+LISTEN     0      64        [::]:35843                 [::]:*                  
+LISTEN     0      128       [::]:37451                 [::]:*                   users:(("rpc.statd",pid=20911,fd=11))
+LISTEN     0      128       [::]:111                   [::]:*                   users:(("rpcbind",pid=20916,fd=11))
+LISTEN     0      128       [::]:20048                 [::]:*                   users:(("rpc.mountd",pid=20919,fd=10))
+LISTEN     0      128       [::]:80                    [::]:*                   users:(("nginx",pid=24897,fd=7),("nginx",pid=24896,fd=7),("nginx",pid=24895,fd=7))
+LISTEN     0      128       [::]:22                    [::]:*                   users:(("sshd",pid=1077,fd=4))
+- firewalld state: unknown
+- firewalld services: 
+- firewalld ports: 
+
+[SELinux Booleans]
+- httpd_can_network_connect: 
+- httpd_can_network_connect_db: 
+- httpd_can_sendmail: 
+- httpd_use_cifs: 
+- httpd_use_nfs: 
+
+[Logs]
+- Error log path: /var/log/nginx/error.log
+- Error log tail:
+
+
+- Access log path: /var/log/nginx/access.log
+- Access log tail:
+
+
+[Recent journalctl Entries for nginx]
+-- Logs begin at Sat 2025-08-09 13:01:01 CST, end at Thu 2026-02-05 16:55:10 CST. --
+Aug 18 19:03:34 test-rhel-7.9-1 systemd[1]: Reloading The nginx HTTP and reverse proxy server.
+Aug 18 19:03:34 test-rhel-7.9-1 systemd[1]: Reloaded The nginx HTTP and reverse proxy server.
+Aug 18 19:03:42 test-rhel-7.9-1 systemd[1]: Stopping The nginx HTTP and reverse proxy server...
+Aug 18 19:03:42 test-rhel-7.9-1 systemd[1]: Stopped The nginx HTTP and reverse proxy server.
+Aug 18 19:03:42 test-rhel-7.9-1 systemd[1]: Starting The nginx HTTP and reverse proxy server...
+Aug 18 19:03:42 test-rhel-7.9-1 nginx[24890]: nginx: the configuration file /etc/nginx/nginx.conf syntax is ok
+Aug 18 19:03:42 test-rhel-7.9-1 nginx[24890]: nginx: configuration file /etc/nginx/nginx.conf test is successful
+Aug 18 19:03:42 test-rhel-7.9-1 systemd[1]: Started The nginx HTTP and reverse proxy server.
+
+[Common Troubleshooting Hints]
+- Syntax errors: Non-zero return code from "nginx -t" usually indicates configuration syntax or path issues.
+- Port conflicts: If ports 80/443 are occupied by non-nginx processes in "ss -lntp", free the ports or change the listening port.
+- SELinux: If access is denied, check AVC logs and adjust SELinux booleans or contexts accordingly.
+- Firewall: Ensure http/https services or ports are allowed in firewalld.
+- Permissions: Incorrect permissions or SELinux contexts on config, work or website directories may cause 4xx/5xx errors.
+- Processes: Verify that the nginx master and worker processes are running as expected.
+
+===============================================================================
