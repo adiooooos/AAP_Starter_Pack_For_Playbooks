@@ -23,6 +23,11 @@ The design follows Red Hat Ansible Automation Platform best practices:
 - Uses `block`/`rescue` to safely handle optional service start attempts.
 - Keeps checks **non-fatal** wherever possible so the playbook continues gathering data even if some steps fail.
 
+### screenshots 
+<img width="2536" height="690" alt="image" src="https://github.com/user-attachments/assets/d43d09a0-7e5e-4bd4-9369-2c7ae9e0d86f" />
+<img width="2536" height="850" alt="image" src="https://github.com/user-attachments/assets/4793c695-76c8-485d-9b13-5a337affd8d9" />
+
+
 ---
 
 ### 2. File Layout
@@ -184,5 +189,6 @@ You can archive these reports centrally or compare them across multiple runs for
   - Run the playbook once against `ftp_servers` to validate server‑side configuration and firewall.
   - Run it again against `ftp_clients` to validate network reachability and TCP connectivity from client side.
 - Combine the generated reports with your ticketing or monitoring systems to build a repeatable FTP troubleshooting workflow.
+
 
 
