@@ -3,6 +3,8 @@
 ## Overview
 
 This Ansible playbook automates the standardization of RHEL9 systems, providing a comprehensive solution for system configuration management. The playbook includes 7 core functional modules that ensure consistent, automated, and repeatable server configurations.
+<img width="2031" height="1325" alt="image" src="https://github.com/user-attachments/assets/49297d0d-7323-4d07-be19-1e73d6ee292d" />
+
 
 **Key Feature**: All configuration parameters are centralized in `group_vars/all.yml`, making it easy to customize the playbook for your specific environment without modifying the playbook code itself.
 
@@ -814,3 +816,4 @@ GCG AAP SSA Team + v3.01 Date 20260205
   - Comprehensive verification mechanism
   - Robust error handling - continues execution on failures
   - Detailed configuration summaries for each role
+
