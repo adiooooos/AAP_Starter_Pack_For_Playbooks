@@ -22,7 +22,12 @@
  - Uses idempotent, read-only checks by default.
  - Uses `debug` tasks after each functional section for easier troubleshooting.
  - Uses `block`/`rescue` to safely handle optional service start attempts.
- 
+
+ ### screenshots
+ <img width="2510" height="1319" alt="image" src="https://github.com/user-attachments/assets/5507fffa-7783-4a41-b3c5-ac4ea4cf7c10" />
+ <img width="2510" height="1324" alt="image" src="https://github.com/user-attachments/assets/1a0b4579-a672-4149-a41c-45a012d03d5d" />
+
+
  ---
  
  ### 2. File Layout
@@ -153,4 +158,5 @@
  - All checks are **non-fatal** wherever possible, so a failure in one area (e.g. missing `chronyc`) will not stop the rest of the diagnostics.
  - Use the `debug` output and the generated report together to quickly pinpoint time synchronization issues across multiple hosts.
  
+
 
