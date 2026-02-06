@@ -1,0 +1,386 @@
+# ============================================================================
+# Playbook: Automated XFS Filesystem Health Check for RHEL 8/9
+# ============================================================================
+#
+# Description:
+#   This playbook automates XFS filesystem health inspection on RHEL/CentOS
+#   systems. It performs the following tasks:
+#   1. Validates OS compatibility and prerequisites
+#   2. Collects all XFS mount points
+#   3. Checks for XFS-related kernel errors in dmesg
+#   4. Performs read-only metadata consistency checks (xfs_db)
+#   5. Collects storage space and inode usage statistics
+#   6. Generates comprehensive health inspection reports
+#   7. Fetches reports back to control node for centralized analysis
+#
+# Author: GCG AAP SSA Team + v3.01 20260217
+#
+# License:
+#   📜 License Type: End User License Agreement (EULA)
+#   🔒 Authorization: Subscription-based License
+#
+# ============================================================================
+
+---
+# ============================================================================
+# Play 1: XFS Filesystem Health Inspection
+# ============================================================================
+- name: "Play 1: XFS Filesystem Health Inspection"
+  hosts: all
+  become: true
+  gather_facts: true
+
+  vars:
+    # --- Core Configuration Variables ---
+    # Report file path on target host
+    report_path: "/tmp/xfs_health_report_{{ ansible_hostname }}.txt"
+    
+    # Report collection destination on control node
+    report_dest_path: "./reports/"
+
+  tasks:
+    # ========================================================================
+    # OS Compatibility Validation
+    # ========================================================================
+    - name: "Validate OS compatibility"
+      ansible.builtin.assert:
+        that:
+          - ansible_distribution in ["RedHat", "CentOS"]
+          - ansible_distribution_major_version in ["7", "8", "9"]
+        fail_msg: "Unsupported operating system. This playbook is not available for the current OS. Supported: RHEL/CentOS 7/8/9"
+        success_msg: "OS compatibility check passed: {{ ansible_distribution }} {{ ansible_distribution_major_version }}"
+      tags:
+        - validation
+        - always
+
+    - name: "Display OS information"
+      ansible.builtin.debug:
+        msg:
+          - "OS Distribution: {{ ansible_distribution }}"
+          - "OS Version: {{ ansible_distribution_version }}"
+          - "OS Major Version: {{ ansible_distribution_major_version }}"
+          - "Hostname: {{ ansible_hostname }}"
+      tags:
+        - validation
+        - debug
+
+    # ========================================================================
+    # Prerequisites: Validate Required Tools
+    # ========================================================================
+    - name: "Prerequisites: Validate required tools"
+      block:
+        - name: "Check if xfs_db command exists"
+          ansible.builtin.command: which xfs_db
+          register: xfs_db_check_tool
+          changed_when: false
+          ignore_errors: true
+
+        - name: "Display xfs_db availability"
+          ansible.builtin.debug:
+            msg: "xfs_db command {{ 'is available' if xfs_db_check_tool.rc == 0 else 'is not available' }}"
+          when: xfs_db_check_tool is defined
+
+        - name: "Check if xfs_repair command exists"
+          ansible.builtin.command: which xfs_repair
+          register: xfs_repair_check
+          changed_when: false
+          ignore_errors: true
+
+        - name: "Display xfs_repair availability"
+          ansible.builtin.debug:
+            msg: "xfs_repair command {{ 'is available' if xfs_repair_check.rc == 0 else 'is not available' }}"
+          when: xfs_repair_check is defined
+
+      rescue:
+        - name: "Handle tool validation failure"
+          ansible.builtin.debug:
+            msg: "Warning: Some XFS tools may not be available. Some checks may be skipped."
+          ignore_errors: true
+
+    # ========================================================================
+    # Task 1: Initialize Report File
+    # ========================================================================
+    - name: "Task 1: Initialize report file"
+      block:
+        - name: "Create report file with header"
+          ansible.builtin.copy:
+            content: |
+              XFS Health Inspection Report
+              ==========================================
+              Generated on: {{ ansible_date_time.iso8601 }}
+              Host: {{ ansible_hostname }}
+              OS: {{ ansible_distribution }} {{ ansible_distribution_version }}
+              ==========================================
+
+            dest: "{{ report_path }}"
+            mode: '0644'
+
+        - name: "Display report file creation status"
+          ansible.builtin.debug:
+            msg: "Report file initialized: {{ report_path }}"
+          when: report_path is defined
+
+      rescue:
+        - name: "Handle report file creation failure"
+          ansible.builtin.debug:
+            msg: "Warning: Failed to create report file. Continuing with health checks."
+          ignore_errors: true
+
+    # ========================================================================
+    # Task 2: Get All XFS Mount Points
+    # ========================================================================
+    - name: "Task 2: Get all XFS mount points"
+      block:
+        - name: "Collect XFS filesystem mount points"
+          ansible.builtin.set_fact:
+            xfs_mounts: "{{ ansible_mounts | selectattr('fstype', 'equalto', 'xfs') | list }}"
+
+        - name: "Display XFS mount points count"
+          ansible.builtin.debug:
+            msg:
+              - "Found {{ xfs_mounts | default([]) | length }} XFS filesystem(s)"
+              - "XFS mount points: {{ xfs_mounts | default([]) | map(attribute='mount') | list }}"
+          when: xfs_mounts is defined
+
+        - name: "Check if any XFS filesystems exist"
+          ansible.builtin.assert:
+            that:
+              - xfs_mounts is defined
+              - xfs_mounts | default([]) | length > 0
+            fail_msg: "No XFS filesystems found on this host. This playbook is designed for systems with XFS filesystems."
+            success_msg: "XFS filesystems detected: {{ xfs_mounts | default([]) | length }}"
+          ignore_errors: true
+
+      rescue:
+        - name: "Handle XFS mount point collection failure"
+          ansible.builtin.debug:
+            msg: "Warning: Failed to collect XFS mount points. Some checks may be skipped."
+          ignore_errors: true
+
+    # ========================================================================
+    # Task 3: Check for Kernel XFS Errors
+    # ========================================================================
+    - name: "Task 3: Check for kernel XFS errors"
+      block:
+        - name: "Query kernel log for XFS errors (last 20 lines)"
+          ansible.builtin.shell: "dmesg | grep -i 'XFS' | tail -n 20"
+          register: dmesg_xfs
+          changed_when: false
+          failed_when: false
+
+        - name: "Display kernel XFS error check result"
+          ansible.builtin.debug:
+            msg:
+              - "Kernel XFS error check completed"
+              - "{{ 'XFS-related messages found in dmesg' if (dmesg_xfs.stdout | default('') | length > 0) else 'No XFS errors found in dmesg' }}"
+          when: dmesg_xfs is defined
+
+        - name: "Append kernel log information to report"
+          ansible.builtin.lineinfile:
+            path: "{{ report_path }}"
+            line: |
+              
+              ==========================================
+              Kernel Log Analysis (dmesg - Last 20 XFS entries)
+              ==========================================
+              {{ dmesg_xfs.stdout if (dmesg_xfs.stdout | default('') | length > 0) else 'No XFS errors found in dmesg.' }}
+            insertafter: EOF
+          when:
+            - dmesg_xfs is defined
+            - report_path is defined
+          ignore_errors: true
+
+      rescue:
+        - name: "Handle kernel log check failure"
+          ansible.builtin.debug:
+            msg: "Warning: Failed to check kernel logs. Continuing with other checks."
+          ignore_errors: true
+
+    # ========================================================================
+    # Task 4: Perform Read-Only Metadata Consistency Check
+    # ========================================================================
+    - name: "Task 4: Perform read-only metadata consistency check"
+      block:
+        - name: "Perform read-only metadata check using xfs_db"
+          ansible.builtin.shell: "xfs_db -c 'check' -r {{ item.device }}"
+          loop: "{{ xfs_mounts | default([]) }}"
+          register: xfs_db_check
+          changed_when: false
+          failed_when: false
+          when:
+            - xfs_mounts is defined
+            - xfs_mounts | default([]) | length > 0
+            - xfs_db_check_tool is defined
+            - xfs_db_check_tool.rc | default(-1) == 0
+
+        - name: "Display metadata check status"
+          ansible.builtin.debug:
+            msg:
+              - "Metadata consistency check completed for {{ xfs_db_check.results | default([]) | length }} filesystem(s)"
+              - "Note: xfs_db check may require unmounting for full reliability. Current check is read-only mode."
+          when: xfs_db_check is defined
+
+      rescue:
+        - name: "Handle metadata check failure"
+          ansible.builtin.debug:
+            msg: "Warning: Metadata consistency check encountered errors. This is normal for live filesystems. For comprehensive checks, consider unmounting filesystems or using xfs_repair -n in maintenance mode."
+          ignore_errors: true
+
+    # ========================================================================
+    # Task 5: Collect Storage Space and Inode Usage
+    # ========================================================================
+    - name: "Task 5: Collect storage space and inode usage"
+      block:
+        - name: "Collect disk space and inode usage for XFS filesystems"
+          ansible.builtin.shell: "df -h {{ item.mount }} && df -i {{ item.mount }}"
+          loop: "{{ xfs_mounts | default([]) }}"
+          register: xfs_usage
+          changed_when: false
+          failed_when: false
+          when: xfs_mounts is defined and xfs_mounts | default([]) | length > 0
+
+        - name: "Display usage collection status"
+          ansible.builtin.debug:
+            msg: "Storage and inode usage collected for {{ xfs_usage.results | default([]) | length }} filesystem(s)"
+          when: xfs_usage is defined
+
+      rescue:
+        - name: "Handle usage collection failure"
+          ansible.builtin.debug:
+            msg: "Warning: Failed to collect storage usage information. Continuing with report generation."
+          ignore_errors: true
+
+    # ========================================================================
+    # Task 6: Compile Data into Report
+    # ========================================================================
+    - name: "Task 6: Compile data into report"
+      block:
+        - name: "Append filesystem details to report (with xfs_db results)"
+          ansible.builtin.lineinfile:
+            path: "{{ report_path }}"
+            line: |
+              
+              ==========================================
+              Filesystem: {{ item.item.device }}
+              Mount Point: {{ item.item.mount }}
+              ==========================================
+              --- Metadata Consistency Check (xfs_db) ---
+              {{ item.stdout if (item.stdout is defined and item.stdout | default('') | length > 0) else 'Metadata check passed or not supported in live mode. For comprehensive checks, unmount filesystem and run xfs_repair -n.' }}
+              --- Storage and Inode Usage ---
+              {{ xfs_usage.results[ansible_loop.index0].stdout if (xfs_usage is defined and xfs_usage.results is defined and ansible_loop.index0 < xfs_usage.results | length) else 'Usage information not available' }}
+              ==========================================
+            loop: "{{ xfs_db_check.results | default([]) }}"
+            loop_control:
+              index_var: ansible_loop_index0
+            insertafter: EOF
+          when:
+            - xfs_db_check is defined
+            - xfs_db_check.results is defined
+            - xfs_db_check.results | default([]) | length > 0
+            - xfs_mounts is defined
+            - report_path is defined
+          ignore_errors: true
+
+        - name: "Append filesystem details to report (without xfs_db results)"
+          ansible.builtin.lineinfile:
+            path: "{{ report_path }}"
+            line: |
+              
+              ==========================================
+              Filesystem: {{ item.device }}
+              Mount Point: {{ item.mount }}
+              ==========================================
+              --- Metadata Consistency Check (xfs_db) ---
+              Metadata check skipped: xfs_db command not available or check failed. For comprehensive checks, unmount filesystem and run xfs_repair -n.
+              --- Storage and Inode Usage ---
+              {{ xfs_usage.results[ansible_loop.index0].stdout if (xfs_usage is defined and xfs_usage.results is defined and ansible_loop.index0 < xfs_usage.results | length) else 'Usage information not available' }}
+              ==========================================
+            loop: "{{ xfs_mounts | default([]) }}"
+            loop_control:
+              index_var: ansible_loop_index0
+            insertafter: EOF
+          when:
+            - (xfs_db_check is not defined) or (xfs_db_check.results | default([]) | length == 0)
+            - xfs_mounts is defined
+            - xfs_mounts | default([]) | length > 0
+            - report_path is defined
+          ignore_errors: true
+
+        - name: "Append report footer"
+          ansible.builtin.lineinfile:
+            path: "{{ report_path }}"
+            line: |
+              
+              ==========================================
+              End of Report
+              ==========================================
+            insertafter: EOF
+          when: report_path is defined
+          ignore_errors: true
+
+        - name: "Display report compilation status"
+          ansible.builtin.debug:
+            msg: "Report compilation completed: {{ report_path }}"
+          when: report_path is defined
+
+      rescue:
+        - name: "Handle report compilation failure"
+          ansible.builtin.debug:
+            msg: "Warning: Failed to compile complete report. Partial report may be available at {{ report_path }}"
+          ignore_errors: true
+
+    # ========================================================================
+    # Task 7: Fetch Report to Control Node
+    # ========================================================================
+    - name: "Task 7: Fetch report to control node"
+      block:
+        - name: "Ensure reports directory exists on control node"
+          ansible.builtin.file:
+            path: "{{ report_dest_path }}"
+            state: directory
+            mode: '0755'
+          delegate_to: localhost
+          run_once: true
+          ignore_errors: true
+
+        - name: "Fetch report file to control node"
+          ansible.builtin.fetch:
+            src: "{{ report_path }}"
+            dest: "{{ report_dest_path }}"
+            flat: yes
+          when: report_path is defined
+          ignore_errors: true
+
+        - name: "Display report fetch status"
+          ansible.builtin.debug:
+            msg:
+              - "Report fetch completed"
+              - "Report location on control node: {{ report_dest_path }}{{ report_path | basename }}"
+          when: report_path is defined
+
+      rescue:
+        - name: "Handle report fetch failure"
+          ansible.builtin.debug:
+            msg: "Warning: Failed to fetch report to control node. Report is still available on target host at {{ report_path }}"
+          ignore_errors: true
+
+    # ========================================================================
+    # Final Report: Display Summary
+    # ========================================================================
+    - name: "Final report: Display summary"
+      ansible.builtin.debug:
+        msg:
+          - "=========================================="
+          - "XFS Health Inspection Summary"
+          - "=========================================="
+          - "Host: {{ ansible_hostname }}"
+          - "XFS Filesystems Found: {{ xfs_mounts | default([]) | length }}"
+          - "Kernel Errors Checked: {{ 'Yes' if dmesg_xfs is defined else 'No' }}"
+          - "Metadata Checks Performed: {{ xfs_db_check.results | default([]) | length if xfs_db_check is defined else 0 }}"
+          - "Usage Statistics Collected: {{ xfs_usage.results | default([]) | length if xfs_usage is defined else 0 }}"
+          - "Report File: {{ report_path }}"
+          - "Report Location (Control Node): {{ report_dest_path }}{{ report_path | basename if report_path is defined else 'N/A' }}"
+          - "=========================================="
+      tags:
+        - always
+

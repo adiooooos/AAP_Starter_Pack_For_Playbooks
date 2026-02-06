@@ -1,0 +1,325 @@
+[root@aap25 28_xfs_check]# ansible-playbook xfs_health_check_site.yml  -i inventory
+[DEPRECATION WARNING]: [defaults]collections_paths option, does not fit var naming standard, use the singular form collections_path instead. This feature will be
+removed from ansible-core in version 2.19. Deprecation warnings can be disabled by setting deprecation_warnings=False in ansible.cfg.
+
+PLAY [Play 1: XFS Filesystem Health Inspection] ************************************************************************************************************************
+
+TASK [Gathering Facts] *************************************************************************************************************************************************
+ok: [Test-RHEL-7.9-1]
+ok: [TEST-RHEL-8.9-1]
+ok: [ansible25.example.com]
+
+TASK [Validate OS compatibility] ***************************************************************************************************************************************
+ok: [Test-RHEL-7.9-1] => {
+    "changed": false,
+    "msg": "OS compatibility check passed: RedHat 7"
+}
+ok: [TEST-RHEL-8.9-1] => {
+    "changed": false,
+    "msg": "OS compatibility check passed: RedHat 8"
+}
+ok: [ansible25.example.com] => {
+    "changed": false,
+    "msg": "OS compatibility check passed: RedHat 9"
+}
+
+TASK [Display OS information] ******************************************************************************************************************************************
+ok: [Test-RHEL-7.9-1] => {
+    "msg": [
+        "OS Distribution: RedHat",
+        "OS Version: 7.9",
+        "OS Major Version: 7",
+        "Hostname: test-rhel-7"
+    ]
+}
+ok: [TEST-RHEL-8.9-1] => {
+    "msg": [
+        "OS Distribution: RedHat",
+        "OS Version: 8.7",
+        "OS Major Version: 8",
+        "Hostname: TEST-RHEL-8"
+    ]
+}
+ok: [ansible25.example.com] => {
+    "msg": [
+        "OS Distribution: RedHat",
+        "OS Version: 9.4",
+        "OS Major Version: 9",
+        "Hostname: ansible25"
+    ]
+}
+
+TASK [Check if xfs_db command exists] **********************************************************************************************************************************
+ok: [Test-RHEL-7.9-1]
+ok: [TEST-RHEL-8.9-1]
+ok: [ansible25.example.com]
+
+TASK [Display xfs_db availability] *************************************************************************************************************************************
+ok: [Test-RHEL-7.9-1] => {
+    "msg": "xfs_db command is available"
+}
+ok: [TEST-RHEL-8.9-1] => {
+    "msg": "xfs_db command is available"
+}
+ok: [ansible25.example.com] => {
+    "msg": "xfs_db command is available"
+}
+
+TASK [Check if xfs_repair command exists] ******************************************************************************************************************************
+ok: [Test-RHEL-7.9-1]
+ok: [ansible25.example.com]
+ok: [TEST-RHEL-8.9-1]
+
+TASK [Display xfs_repair availability] *********************************************************************************************************************************
+ok: [Test-RHEL-7.9-1] => {
+    "msg": "xfs_repair command is available"
+}
+ok: [TEST-RHEL-8.9-1] => {
+    "msg": "xfs_repair command is available"
+}
+ok: [ansible25.example.com] => {
+    "msg": "xfs_repair command is available"
+}
+
+TASK [Create report file with header] **********************************************************************************************************************************
+changed: [Test-RHEL-7.9-1]
+changed: [ansible25.example.com]
+changed: [TEST-RHEL-8.9-1]
+
+TASK [Display report file creation status] *****************************************************************************************************************************
+ok: [Test-RHEL-7.9-1] => {
+    "msg": "Report file initialized: /tmp/xfs_health_report_test-rhel-7.txt"
+}
+ok: [TEST-RHEL-8.9-1] => {
+    "msg": "Report file initialized: /tmp/xfs_health_report_TEST-RHEL-8.txt"
+}
+ok: [ansible25.example.com] => {
+    "msg": "Report file initialized: /tmp/xfs_health_report_ansible25.txt"
+}
+
+TASK [Collect XFS filesystem mount points] *****************************************************************************************************************************
+ok: [Test-RHEL-7.9-1]
+ok: [TEST-RHEL-8.9-1]
+ok: [ansible25.example.com]
+
+TASK [Display XFS mount points count] **********************************************************************************************************************************
+ok: [Test-RHEL-7.9-1] => {
+    "msg": [
+        "Found 2 XFS filesystem(s)",
+        "XFS mount points: ['/boot', '/']"
+    ]
+}
+ok: [TEST-RHEL-8.9-1] => {
+    "msg": [
+        "Found 2 XFS filesystem(s)",
+        "XFS mount points: ['/', '/boot']"
+    ]
+}
+ok: [ansible25.example.com] => {
+    "msg": [
+        "Found 3 XFS filesystem(s)",
+        "XFS mount points: ['/', '/home', '/boot']"
+    ]
+}
+
+TASK [Check if any XFS filesystems exist] ******************************************************************************************************************************
+ok: [Test-RHEL-7.9-1] => {
+    "changed": false,
+    "msg": "XFS filesystems detected: 2"
+}
+ok: [TEST-RHEL-8.9-1] => {
+    "changed": false,
+    "msg": "XFS filesystems detected: 2"
+}
+ok: [ansible25.example.com] => {
+    "changed": false,
+    "msg": "XFS filesystems detected: 3"
+}
+
+TASK [Query kernel log for XFS errors (last 20 lines)] *****************************************************************************************************************
+ok: [Test-RHEL-7.9-1]
+ok: [ansible25.example.com]
+ok: [TEST-RHEL-8.9-1]
+
+TASK [Display kernel XFS error check result] ***************************************************************************************************************************
+ok: [Test-RHEL-7.9-1] => {
+    "msg": [
+        "Kernel XFS error check completed",
+        "XFS-related messages found in dmesg"
+    ]
+}
+ok: [TEST-RHEL-8.9-1] => {
+    "msg": [
+        "Kernel XFS error check completed",
+        "XFS-related messages found in dmesg"
+    ]
+}
+ok: [ansible25.example.com] => {
+    "msg": [
+        "Kernel XFS error check completed",
+        "No XFS errors found in dmesg"
+    ]
+}
+
+TASK [Append kernel log information to report] *************************************************************************************************************************
+changed: [Test-RHEL-7.9-1]
+changed: [ansible25.example.com]
+changed: [TEST-RHEL-8.9-1]
+
+TASK [Perform read-only metadata check using xfs_db] *******************************************************************************************************************
+ok: [Test-RHEL-7.9-1] => (item={'block_used': 49577, 'uuid': 'a652325b-edd3-4cd4-9c3e-38045ee16057', 'size_total': 1063256064, 'block_total': 259584, 'mount': '/boot', 'block_available': 210007, 'size_available': 860188672, 'fstype': 'xfs', 'inode_total': 524288, 'inode_available': 523956, 'device': '/dev/sda1', 'inode_used': 332, 'block_size': 4096, 'options': 'rw,relatime,attr2,inode64,noquota'})
+ok: [ansible25.example.com] => (item={'mount': '/', 'device': '/dev/mapper/rhel-root', 'fstype': 'xfs', 'options': 'rw,relatime,attr2,inode64,logbufs=8,logbsize=32k,noquota', 'size_total': 37748736000, 'size_available': 24244932608, 'block_size': 4096, 'block_total': 9216000, 'block_available': 5919173, 'block_used': 3296827, 'inode_total': 18464768, 'inode_available': 18037530, 'inode_used': 427238, 'uuid': 'ff5b3383-d3c0-4ddc-9e35-44395d98284c'})
+ok: [TEST-RHEL-8.9-1] => (item={'mount': '/', 'device': '/dev/mapper/rhel-root', 'fstype': 'xfs', 'options': 'rw,seclabel,relatime,attr2,inode64,logbufs=8,logbsize=32k,noquota', 'size_total': 46588542976, 'size_available': 13962268672, 'block_size': 4096, 'block_total': 11374156, 'block_available': 3408757, 'block_used': 7965399, 'inode_total': 22759424, 'inode_available': 22613141, 'inode_used': 146283, 'uuid': 'd3ce1122-57e3-4a2a-bb70-8309464a4706'})
+ok: [Test-RHEL-7.9-1] => (item={'block_used': 890638, 'uuid': 'ee81ea4b-4290-4262-8436-15d8bf27a434', 'size_total': 18238930944, 'block_total': 4452864, 'mount': '/', 'block_available': 3562226, 'size_available': 14590877696, 'fstype': 'xfs', 'inode_total': 8910848, 'inode_available': 8844811, 'device': '/dev/mapper/rhel-root', 'inode_used': 66037, 'block_size': 4096, 'options': 'rw,relatime,attr2,inode64,noquota'})
+ok: [ansible25.example.com] => (item={'mount': '/home', 'device': '/dev/mapper/rhel-home', 'fstype': 'xfs', 'options': 'rw,relatime,attr2,inode64,logbufs=8,logbsize=32k,noquota', 'size_total': 72074919936, 'size_available': 49412472832, 'block_size': 4096, 'block_total': 17596416, 'block_available': 12063592, 'block_used': 5532824, 'inode_total': 35225600, 'inode_available': 34128869, 'inode_used': 1096731, 'uuid': '6620e40a-45bf-49d0-8024-c64d8dc5098f'})
+ok: [TEST-RHEL-8.9-1] => (item={'mount': '/boot', 'device': '/dev/sda2', 'fstype': 'xfs', 'options': 'rw,seclabel,relatime,attr2,inode64,logbufs=8,logbsize=32k,noquota', 'size_total': 1063256064, 'size_available': 797773824, 'block_size': 4096, 'block_total': 259584, 'block_available': 194769, 'block_used': 64815, 'inode_total': 524288, 'inode_available': 524269, 'inode_used': 19, 'uuid': '281aa2fc-3521-41d9-95d7-59e29ca1e328'})
+ok: [ansible25.example.com] => (item={'mount': '/boot', 'device': '/dev/sda2', 'fstype': 'xfs', 'options': 'rw,relatime,attr2,inode64,logbufs=8,logbsize=32k,noquota', 'size_total': 1006632960, 'size_available': 730292224, 'block_size': 4096, 'block_total': 245760, 'block_available': 178294, 'block_used': 67466, 'inode_total': 524288, 'inode_available': 524267, 'inode_used': 21, 'uuid': 'a76e70fd-f101-4741-9bc6-967e1def439f'})
+
+TASK [Display metadata check status] ***********************************************************************************************************************************
+ok: [Test-RHEL-7.9-1] => {
+    "msg": [
+        "Metadata consistency check completed for 2 filesystem(s)",
+        "Note: xfs_db check may require unmounting for full reliability. Current check is read-only mode."
+    ]
+}
+ok: [TEST-RHEL-8.9-1] => {
+    "msg": [
+        "Metadata consistency check completed for 2 filesystem(s)",
+        "Note: xfs_db check may require unmounting for full reliability. Current check is read-only mode."
+    ]
+}
+ok: [ansible25.example.com] => {
+    "msg": [
+        "Metadata consistency check completed for 3 filesystem(s)",
+        "Note: xfs_db check may require unmounting for full reliability. Current check is read-only mode."
+    ]
+}
+
+TASK [Collect disk space and inode usage for XFS filesystems] **********************************************************************************************************
+ok: [Test-RHEL-7.9-1] => (item={'block_used': 49577, 'uuid': 'a652325b-edd3-4cd4-9c3e-38045ee16057', 'size_total': 1063256064, 'block_total': 259584, 'mount': '/boot', 'block_available': 210007, 'size_available': 860188672, 'fstype': 'xfs', 'inode_total': 524288, 'inode_available': 523956, 'device': '/dev/sda1', 'inode_used': 332, 'block_size': 4096, 'options': 'rw,relatime,attr2,inode64,noquota'})
+ok: [ansible25.example.com] => (item={'mount': '/', 'device': '/dev/mapper/rhel-root', 'fstype': 'xfs', 'options': 'rw,relatime,attr2,inode64,logbufs=8,logbsize=32k,noquota', 'size_total': 37748736000, 'size_available': 24244932608, 'block_size': 4096, 'block_total': 9216000, 'block_available': 5919173, 'block_used': 3296827, 'inode_total': 18464768, 'inode_available': 18037530, 'inode_used': 427238, 'uuid': 'ff5b3383-d3c0-4ddc-9e35-44395d98284c'})
+ok: [TEST-RHEL-8.9-1] => (item={'mount': '/', 'device': '/dev/mapper/rhel-root', 'fstype': 'xfs', 'options': 'rw,seclabel,relatime,attr2,inode64,logbufs=8,logbsize=32k,noquota', 'size_total': 46588542976, 'size_available': 13962268672, 'block_size': 4096, 'block_total': 11374156, 'block_available': 3408757, 'block_used': 7965399, 'inode_total': 22759424, 'inode_available': 22613141, 'inode_used': 146283, 'uuid': 'd3ce1122-57e3-4a2a-bb70-8309464a4706'})
+ok: [Test-RHEL-7.9-1] => (item={'block_used': 890638, 'uuid': 'ee81ea4b-4290-4262-8436-15d8bf27a434', 'size_total': 18238930944, 'block_total': 4452864, 'mount': '/', 'block_available': 3562226, 'size_available': 14590877696, 'fstype': 'xfs', 'inode_total': 8910848, 'inode_available': 8844811, 'device': '/dev/mapper/rhel-root', 'inode_used': 66037, 'block_size': 4096, 'options': 'rw,relatime,attr2,inode64,noquota'})
+ok: [ansible25.example.com] => (item={'mount': '/home', 'device': '/dev/mapper/rhel-home', 'fstype': 'xfs', 'options': 'rw,relatime,attr2,inode64,logbufs=8,logbsize=32k,noquota', 'size_total': 72074919936, 'size_available': 49412472832, 'block_size': 4096, 'block_total': 17596416, 'block_available': 12063592, 'block_used': 5532824, 'inode_total': 35225600, 'inode_available': 34128869, 'inode_used': 1096731, 'uuid': '6620e40a-45bf-49d0-8024-c64d8dc5098f'})
+ok: [TEST-RHEL-8.9-1] => (item={'mount': '/boot', 'device': '/dev/sda2', 'fstype': 'xfs', 'options': 'rw,seclabel,relatime,attr2,inode64,logbufs=8,logbsize=32k,noquota', 'size_total': 1063256064, 'size_available': 797773824, 'block_size': 4096, 'block_total': 259584, 'block_available': 194769, 'block_used': 64815, 'inode_total': 524288, 'inode_available': 524269, 'inode_used': 19, 'uuid': '281aa2fc-3521-41d9-95d7-59e29ca1e328'})
+ok: [ansible25.example.com] => (item={'mount': '/boot', 'device': '/dev/sda2', 'fstype': 'xfs', 'options': 'rw,relatime,attr2,inode64,logbufs=8,logbsize=32k,noquota', 'size_total': 1006632960, 'size_available': 730292224, 'block_size': 4096, 'block_total': 245760, 'block_available': 178294, 'block_used': 67466, 'inode_total': 524288, 'inode_available': 524267, 'inode_used': 21, 'uuid': 'a76e70fd-f101-4741-9bc6-967e1def439f'})
+
+TASK [Display usage collection status] *********************************************************************************************************************************
+ok: [Test-RHEL-7.9-1] => {
+    "msg": "Storage and inode usage collected for 2 filesystem(s)"
+}
+ok: [TEST-RHEL-8.9-1] => {
+    "msg": "Storage and inode usage collected for 2 filesystem(s)"
+}
+ok: [ansible25.example.com] => {
+    "msg": "Storage and inode usage collected for 3 filesystem(s)"
+}
+
+TASK [Append filesystem details to report (with xfs_db results)] *******************************************************************************************************
+fatal: [Test-RHEL-7.9-1]: FAILED! => {"msg": "The task includes an option with an undefined variable. The error was: 'item' is undefined. 'item' is undefined\n\nThe error appears to be in '/home/admin/aap/controller/data/projects/starter_pack/28_xfs_check/xfs_health_check_site.yml': line 258, column 11, but may\nbe elsewhere in the file depending on the exact syntax problem.\n\nThe offending line appears to be:\n\n      block:\n        - name: \"Append filesystem details to report (with xfs_db results)\"\n          ^ here\n"}
+...ignoring
+fatal: [TEST-RHEL-8.9-1]: FAILED! => {"msg": "The task includes an option with an undefined variable. The error was: 'item' is undefined. 'item' is undefined\n\nThe error appears to be in '/home/admin/aap/controller/data/projects/starter_pack/28_xfs_check/xfs_health_check_site.yml': line 258, column 11, but may\nbe elsewhere in the file depending on the exact syntax problem.\n\nThe offending line appears to be:\n\n      block:\n        - name: \"Append filesystem details to report (with xfs_db results)\"\n          ^ here\n"}
+...ignoring
+fatal: [ansible25.example.com]: FAILED! => {"msg": "The task includes an option with an undefined variable. The error was: 'item' is undefined. 'item' is undefined\n\nThe error appears to be in '/home/admin/aap/controller/data/projects/starter_pack/28_xfs_check/xfs_health_check_site.yml': line 258, column 11, but may\nbe elsewhere in the file depending on the exact syntax problem.\n\nThe offending line appears to be:\n\n      block:\n        - name: \"Append filesystem details to report (with xfs_db results)\"\n          ^ here\n"}
+...ignoring
+
+TASK [Append filesystem details to report (without xfs_db results)] ****************************************************************************************************
+skipping: [Test-RHEL-7.9-1]
+skipping: [TEST-RHEL-8.9-1]
+skipping: [ansible25.example.com]
+
+TASK [Append report footer] ********************************************************************************************************************************************
+changed: [Test-RHEL-7.9-1]
+changed: [ansible25.example.com]
+changed: [TEST-RHEL-8.9-1]
+
+TASK [Display report compilation status] *******************************************************************************************************************************
+ok: [Test-RHEL-7.9-1] => {
+    "msg": "Report compilation completed: /tmp/xfs_health_report_test-rhel-7.txt"
+}
+ok: [TEST-RHEL-8.9-1] => {
+    "msg": "Report compilation completed: /tmp/xfs_health_report_TEST-RHEL-8.txt"
+}
+ok: [ansible25.example.com] => {
+    "msg": "Report compilation completed: /tmp/xfs_health_report_ansible25.txt"
+}
+
+TASK [Ensure reports directory exists on control node] *****************************************************************************************************************
+changed: [Test-RHEL-7.9-1 -> localhost]
+
+TASK [Fetch report file to control node] *******************************************************************************************************************************
+changed: [Test-RHEL-7.9-1]
+changed: [ansible25.example.com]
+changed: [TEST-RHEL-8.9-1]
+
+TASK [Display report fetch status] *************************************************************************************************************************************
+ok: [Test-RHEL-7.9-1] => {
+    "msg": [
+        "Report fetch completed",
+        "Report location on control node: ./reports/xfs_health_report_test-rhel-7.txt"
+    ]
+}
+ok: [TEST-RHEL-8.9-1] => {
+    "msg": [
+        "Report fetch completed",
+        "Report location on control node: ./reports/xfs_health_report_TEST-RHEL-8.txt"
+    ]
+}
+ok: [ansible25.example.com] => {
+    "msg": [
+        "Report fetch completed",
+        "Report location on control node: ./reports/xfs_health_report_ansible25.txt"
+    ]
+}
+
+TASK [Final report: Display summary] ***********************************************************************************************************************************
+ok: [Test-RHEL-7.9-1] => {
+    "msg": [
+        "==========================================",
+        "XFS Health Inspection Summary",
+        "==========================================",
+        "Host: test-rhel-7",
+        "XFS Filesystems Found: 2",
+        "Kernel Errors Checked: Yes",
+        "Metadata Checks Performed: 2",
+        "Usage Statistics Collected: 2",
+        "Report File: /tmp/xfs_health_report_test-rhel-7.txt",
+        "Report Location (Control Node): ./reports/xfs_health_report_test-rhel-7.txt",
+        "=========================================="
+    ]
+}
+ok: [TEST-RHEL-8.9-1] => {
+    "msg": [
+        "==========================================",
+        "XFS Health Inspection Summary",
+        "==========================================",
+        "Host: TEST-RHEL-8",
+        "XFS Filesystems Found: 2",
+        "Kernel Errors Checked: Yes",
+        "Metadata Checks Performed: 2",
+        "Usage Statistics Collected: 2",
+        "Report File: /tmp/xfs_health_report_TEST-RHEL-8.txt",
+        "Report Location (Control Node): ./reports/xfs_health_report_TEST-RHEL-8.txt",
+        "=========================================="
+    ]
+}
+ok: [ansible25.example.com] => {
+    "msg": [
+        "==========================================",
+        "XFS Health Inspection Summary",
+        "==========================================",
+        "Host: ansible25",
+        "XFS Filesystems Found: 3",
+        "Kernel Errors Checked: Yes",
+        "Metadata Checks Performed: 3",
+        "Usage Statistics Collected: 3",
+        "Report File: /tmp/xfs_health_report_ansible25.txt",
+        "Report Location (Control Node): ./reports/xfs_health_report_ansible25.txt",
+        "=========================================="
+    ]
+}
+
+PLAY RECAP *************************************************************************************************************************************************************
+TEST-RHEL-8.9-1            : ok=25   changed=4    unreachable=0    failed=0    skipped=1    rescued=0    ignored=1
+Test-RHEL-7.9-1            : ok=26   changed=5    unreachable=0    failed=0    skipped=1    rescued=0    ignored=1
+ansible25.example.com      : ok=25   changed=4    unreachable=0    failed=0    skipped=1    rescued=0    ignored=1
