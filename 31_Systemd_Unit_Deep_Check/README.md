@@ -5,6 +5,11 @@
 This playbook automates deep investigation of failed systemd units on RHEL/CentOS systems. It identifies all failed systemd units, analyzes each one with detailed status information and recent journal logs, and generates comprehensive investigation reports. The playbook is designed for production environments and focuses on investigation and reporting only—it does NOT restart services or modify system state, allowing administrators to make informed decisions about remediation.
 
 The playbook generates comprehensive JSON format reports that include failed unit details, status information, recent logs, and investigation timestamps. Reports are automatically collected back to the control node for centralized analysis and monitoring.
+### screenshots
+<img width="2031" height="1325" alt="image" src="https://github.com/user-attachments/assets/b083d583-78e4-437d-9992-07580f7daf96" />
+
+<img width="2536" height="391" alt="image" src="https://github.com/user-attachments/assets/5cb3adac-8dfe-415f-becb-5f4a8f7ca66d" />
+
 
 ## Features
 
@@ -406,4 +411,5 @@ For issues or questions:
 ## Author
 
 GCG AAP SSA Team + v3.01 20260217
+
 
