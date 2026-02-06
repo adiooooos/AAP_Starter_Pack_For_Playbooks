@@ -5,6 +5,9 @@
 This playbook automates the installation and configuration of Kdump kernel crash dump service on RHEL/CentOS systems. It provides a complete, enterprise-grade solution for deploying kernel crash dump capabilities across your infrastructure, eliminating manual configuration steps and ensuring consistent, reliable system fault diagnosis capabilities.
 
 Kdump is a kernel crash dumping mechanism that allows you to save the contents of system memory when the kernel crashes. This playbook automates the entire Kdump configuration process, from package installation to service startup, with support for multiple storage backends and kernel panic trigger conditions.
+### screenshots
+<img width="2031" height="1210" alt="image" src="https://github.com/user-attachments/assets/4982f18a-7b7b-4356-851c-f9a47cf7ade5" />
+
 
 ## Features
 
@@ -397,4 +400,5 @@ For issues or questions:
 ## Author
 
 GCG AAP SSA Team + v3.01 20260217
+
 
