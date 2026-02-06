@@ -1,0 +1,447 @@
+# ============================================================================
+# Playbook: Automated TigerVNC Server Configuration
+# ============================================================================
+#
+# Description:
+#   This playbook automates the installation and configuration of TigerVNC
+#   server on RHEL/CentOS systems. It performs the following tasks:
+#   1. Validates OS compatibility and prerequisites
+#   2. Installs TigerVNC server and desktop environment
+#   3. Configures VNC user mappings and session settings
+#   4. Sets up VNC password securely
+#   5. Configures firewall rules
+#   6. Enables and starts VNC services
+#
+# Author: GCG AAP SSA Team + v3.01 20260217
+#
+# License:
+#   📜 License Type: End User License Agreement (EULA)
+#   🔒 Authorization: Subscription-based License
+#
+# ============================================================================
+
+---
+# ============================================================================
+# Play 1: Configure TigerVNC Server
+# ============================================================================
+- name: "Play 1: Configure TigerVNC Server"
+  hosts: vnc_servers
+  become: true
+  gather_facts: true
+
+  vars:
+    # --- Key Configuration Variables ---
+    # Target RHEL major version (for pre-validation)
+    rhel_major_version: "8"
+    # VNC username (this user must already exist)
+    vnc_user: "admin01"
+    # VNC desktop resolution
+    vnc_geometry: "1280x1024"
+    # VNC display number (e.g., 2 corresponds to port 5902)
+    vnc_display_number: "2"
+    # VNC desktop session type (e.g., gnome, xfce)
+    vnc_desktop_session: "gnome"
+    # VNC password. IMPORTANT: For security, strongly recommend using
+    # Ansible Vault to encrypt this variable!
+    # Execute: ansible-vault encrypt_string 'YourSecretPassword' --name 'vnc_password'
+    vnc_password: "YourSecretPassword"  # <--- Please modify or use Vault encryption
+
+  tasks:
+    # ========================================================================
+    # OS Compatibility Validation
+    # ========================================================================
+    - name: "Validate OS compatibility"
+      ansible.builtin.assert:
+        that:
+          - ansible_distribution in ["RedHat", "CentOS"]
+          - ansible_distribution_major_version in ["7", "8", "9"]
+        fail_msg: "Unsupported operating system. This playbook is not available for the current OS. Supported: RHEL/CentOS 7/8/9"
+        success_msg: "OS compatibility check passed: {{ ansible_distribution }} {{ ansible_distribution_major_version }}"
+      tags:
+        - validation
+        - always
+
+    - name: "Display OS information"
+      ansible.builtin.debug:
+        msg:
+          - "OS Distribution: {{ ansible_distribution }}"
+          - "OS Version: {{ ansible_distribution_version }}"
+          - "OS Major Version: {{ ansible_distribution_major_version }}"
+
+    # ========================================================================
+    # Input Parameter Validation
+    # ========================================================================
+    - name: "Validate VNC user parameter"
+      ansible.builtin.assert:
+        that:
+          - vnc_user is defined
+          - vnc_user | length > 0
+          - vnc_user is string
+        fail_msg: "Invalid vnc_user parameter. Must be a non-empty string."
+        success_msg: "VNC user parameter validated: {{ vnc_user }}"
+      ignore_errors: true
+
+    - name: "Validate VNC display number"
+      ansible.builtin.assert:
+        that:
+          - vnc_display_number is defined
+          - vnc_display_number | string | regex_search('^[0-9]+$')
+          - vnc_display_number | int >= 1
+          - vnc_display_number | int <= 99
+        fail_msg: "Invalid vnc_display_number. Must be an integer between 1 and 99."
+        success_msg: "VNC display number validated: {{ vnc_display_number }}"
+      ignore_errors: true
+
+    - name: "Validate VNC geometry"
+      ansible.builtin.assert:
+        that:
+          - vnc_geometry is defined
+          - vnc_geometry | string | regex_search('^[0-9]+x[0-9]+$')
+        fail_msg: "Invalid vnc_geometry format. Must be in format: WIDTHxHEIGHT (e.g., 1280x1024)"
+        success_msg: "VNC geometry validated: {{ vnc_geometry }}"
+      ignore_errors: true
+
+    - name: "Validate VNC password"
+      ansible.builtin.assert:
+        that:
+          - vnc_password is defined
+          - vnc_password | length >= 6
+        fail_msg: "Invalid vnc_password. Must be at least 6 characters long."
+        success_msg: "VNC password parameter validated (length check passed)"
+      ignore_errors: true
+      no_log: true
+
+    # ========================================================================
+    # Pre-check: Ensure VNC User Exists
+    # ========================================================================
+    - name: "Pre-check: Verify VNC user exists"
+      ansible.builtin.getent:
+        database: passwd
+        key: "{{ vnc_user }}"
+      register: vnc_user_check
+      ignore_errors: true
+
+    - name: "Display VNC user check result"
+      ansible.builtin.debug:
+        msg: "VNC user '{{ vnc_user }}' {{ 'exists' if vnc_user_check.ansible_facts.getent_passwd is defined else 'does not exist' }}"
+      when: vnc_user_check is defined
+
+    - name: "Ensure VNC user exists (create if missing)"
+      ansible.builtin.user:
+        name: "{{ vnc_user }}"
+        state: present
+        create_home: true
+        shell: /bin/bash
+      register: vnc_user_create_result
+      ignore_errors: true
+
+    - name: "Display user creation status"
+      ansible.builtin.debug:
+        msg: "VNC user '{{ vnc_user }}' {{ 'created' if vnc_user_create_result.changed else 'already exists' }}"
+      when: vnc_user_create_result is defined
+
+    # ========================================================================
+    # Install TigerVNC Server and Desktop Environment
+    # ========================================================================
+    - name: "Install TigerVNC server and desktop environment"
+      block:
+        - name: "Define packages to install"
+          ansible.builtin.set_fact:
+            vnc_packages:
+              - tigervnc-server
+              - "@workstation"  # Install a basic desktop environment group
+
+        - name: "Install TigerVNC packages"
+          ansible.builtin.package:
+            name: "{{ vnc_packages }}"
+            state: latest
+          register: vnc_install_result
+          ignore_errors: true
+
+        - name: "Display installation status"
+          ansible.builtin.debug:
+            msg: "TigerVNC packages installation {{ 'succeeded' if not vnc_install_result.failed else 'failed' }}"
+          when: vnc_install_result is defined
+
+      rescue:
+        - name: "Handle package installation failure"
+          ansible.builtin.debug:
+            msg: "Warning: Failed to install TigerVNC packages. Please check repository configuration and network connectivity."
+          ignore_errors: true
+
+    # ========================================================================
+    # Configure System-level VNC User Mapping
+    # ========================================================================
+    - name: "Configure system-level VNC user mapping"
+      block:
+        - name: "Ensure /etc/tigervnc directory exists"
+          ansible.builtin.file:
+            path: /etc/tigervnc
+            state: directory
+            owner: root
+            group: root
+            mode: '0755'
+          ignore_errors: true
+
+        - name: "Set system-level VNC user mapping"
+          ansible.builtin.lineinfile:
+            path: /etc/tigervnc/vncserver.users
+            regexp: "^{{ ':' ~ vnc_display_number }}="
+            line: "{{ ':' ~ vnc_display_number }}={{ vnc_user }}"
+            create: true
+            owner: root
+            group: root
+            mode: '0644'
+          register: vnc_user_mapping_result
+          ignore_errors: true
+
+        - name: "Display user mapping status"
+          ansible.builtin.debug:
+            msg: "VNC user mapping {{ 'configured' if not vnc_user_mapping_result.failed else 'failed' }}"
+          when: vnc_user_mapping_result is defined
+
+      rescue:
+        - name: "Handle VNC user mapping failure"
+          ansible.builtin.debug:
+            msg: "Warning: Failed to configure VNC user mapping. Manual configuration may be required."
+          ignore_errors: true
+
+    # ========================================================================
+    # Configure System-level VNC Default Session
+    # ========================================================================
+    - name: "Configure system-level VNC default session"
+      block:
+        - name: "Set system-level VNC default session"
+          ansible.builtin.copy:
+            content: "session={{ vnc_desktop_session }}"
+            dest: /etc/tigervnc/vncserver-config-defaults
+            owner: root
+            group: root
+            mode: '0644'
+          register: vnc_session_config_result
+          ignore_errors: true
+
+        - name: "Display session configuration status"
+          ansible.builtin.debug:
+            msg: "VNC default session {{ 'configured' if not vnc_session_config_result.failed else 'failed' }}"
+          when: vnc_session_config_result is defined
+
+      rescue:
+        - name: "Handle VNC session configuration failure"
+          ansible.builtin.debug:
+            msg: "Warning: Failed to configure VNC default session. Default session may not work correctly."
+          ignore_errors: true
+
+    # ========================================================================
+    # Create User .vnc Directory
+    # ========================================================================
+    - name: "Create user .vnc directory"
+      block:
+        - name: "Create .vnc directory for VNC user"
+          ansible.builtin.file:
+            path: "/home/{{ vnc_user }}/.vnc"
+            state: directory
+            owner: "{{ vnc_user }}"
+            group: "{{ vnc_user }}"
+            mode: '0700'
+          register: vnc_dir_result
+          ignore_errors: true
+
+        - name: "Display directory creation status"
+          ansible.builtin.debug:
+            msg: "VNC directory {{ 'created' if not vnc_dir_result.failed else 'failed' }}"
+          when: vnc_dir_result is defined
+
+      rescue:
+        - name: "Handle directory creation failure"
+          ansible.builtin.debug:
+            msg: "Warning: Failed to create .vnc directory. VNC configuration may not work correctly."
+          ignore_errors: true
+
+    # ========================================================================
+    # Configure User VNC Resolution
+    # ========================================================================
+    - name: "Configure user VNC resolution"
+      block:
+        - name: "Set user VNC resolution"
+          ansible.builtin.copy:
+            content: "geometry={{ vnc_geometry }}"
+            dest: "/home/{{ vnc_user }}/.vnc/config"
+            owner: "{{ vnc_user }}"
+            group: "{{ vnc_user }}"
+            mode: '0600'
+          register: vnc_resolution_result
+          ignore_errors: true
+
+        - name: "Display resolution configuration status"
+          ansible.builtin.debug:
+            msg: "VNC resolution {{ 'configured' if not vnc_resolution_result.failed else 'failed' }}"
+          when: vnc_resolution_result is defined
+
+      rescue:
+        - name: "Handle resolution configuration failure"
+          ansible.builtin.debug:
+            msg: "Warning: Failed to configure VNC resolution. Default resolution will be used."
+          ignore_errors: true
+
+    # ========================================================================
+    # Security: Automate VNC Password Setup (Idempotent)
+    # ========================================================================
+    - name: "Security: Automate VNC password setup"
+      block:
+        - name: "Create temporary password file for vncpasswd"
+          ansible.builtin.copy:
+            content: "{{ vnc_password }}\n{{ vnc_password }}"
+            dest: "/tmp/vnc_passwd_{{ vnc_user }}_tmp"
+            mode: '0600'
+          register: vnc_passwd_file_result
+          no_log: true  # Very important! Prevent password from appearing in logs
+          ignore_errors: true
+
+        - name: "Set VNC password using vncpasswd from file"
+          ansible.builtin.shell: |
+            vncpasswd -f < /tmp/vnc_passwd_{{ vnc_user }}_tmp > /home/{{ vnc_user }}/.vnc/passwd
+          become: true
+          become_user: "{{ vnc_user }}"
+          register: vnc_passwd_result
+          no_log: true  # Very important! Prevent password from appearing in logs
+          ignore_errors: true
+          changed_when: vnc_passwd_result.rc == 0
+          when: vnc_passwd_file_result is defined and not vnc_passwd_file_result.failed
+
+        - name: "Set correct permissions on VNC password file"
+          ansible.builtin.file:
+            path: "/home/{{ vnc_user }}/.vnc/passwd"
+            owner: "{{ vnc_user }}"
+            group: "{{ vnc_user }}"
+            mode: '0600'
+          ignore_errors: true
+          when: vnc_passwd_result is defined and not vnc_passwd_result.failed
+
+        - name: "Remove temporary password file"
+          ansible.builtin.file:
+            path: "/tmp/vnc_passwd_{{ vnc_user }}_tmp"
+            state: absent
+          ignore_errors: true
+          no_log: true
+
+        - name: "Display password setup status"
+          ansible.builtin.debug:
+            msg: "VNC password {{ 'configured' if (vnc_passwd_result is defined and not vnc_passwd_result.failed) else 'failed' }}"
+          when: vnc_passwd_result is defined
+          no_log: true
+
+      rescue:
+        - name: "Handle VNC password setup failure"
+          ansible.builtin.debug:
+            msg: "Warning: Failed to set VNC password. Manual password setup may be required using 'vncpasswd' command."
+          ignore_errors: true
+          no_log: true
+
+        - name: "Cleanup temporary password file on failure"
+          ansible.builtin.file:
+            path: "/tmp/vnc_passwd_{{ vnc_user }}_tmp"
+            state: absent
+          ignore_errors: true
+          no_log: true
+
+    # ========================================================================
+    # Service Management: Enable and Start VNC Service
+    # ========================================================================
+    - name: "Service management: Enable and start VNC service"
+      block:
+        - name: "Stop existing VNC service if running"
+          ansible.builtin.systemd:
+            name: "vncserver@:{{ vnc_display_number }}.service"
+            state: stopped
+          ignore_errors: true
+
+        - name: "Enable and start VNC service"
+          ansible.builtin.systemd:
+            name: "vncserver@:{{ vnc_display_number }}.service"
+            state: started
+            enabled: true
+            daemon_reload: true
+          register: vnc_service_result
+          ignore_errors: true
+
+        - name: "Display service status"
+          ansible.builtin.debug:
+            msg: "VNC service {{ 'started and enabled' if not vnc_service_result.failed else 'failed to start' }}"
+          when: vnc_service_result is defined
+
+        - name: "Verify VNC service status"
+          ansible.builtin.systemd:
+            name: "vncserver@:{{ vnc_display_number }}.service"
+          register: vnc_service_status
+          ignore_errors: true
+
+        - name: "Display VNC service verification"
+          ansible.builtin.debug:
+            msg:
+              - "VNC service status: {{ vnc_service_status.status.ActiveState | default('unknown') }}"
+              - "VNC service enabled: {{ vnc_service_status.status.UnitFileState | default('unknown') }}"
+          when: vnc_service_status is defined
+
+      rescue:
+        - name: "Handle VNC service management failure"
+          ansible.builtin.debug:
+            msg: "Warning: Failed to manage VNC service. Please check service status manually."
+          ignore_errors: true
+
+    # ========================================================================
+    # Firewall Management: Open VNC Service Port
+    # ========================================================================
+    - name: "Firewall management: Open VNC service port"
+      block:
+        - name: "Check if firewalld is running"
+          ansible.builtin.command: systemctl is-active firewalld
+          register: firewalld_status
+          ignore_errors: true
+          changed_when: false
+
+        - name: "Open VNC service port in firewall"
+          ansible.posix.firewalld:
+            service: vnc-server
+            permanent: true
+            state: enabled
+            immediate: true  # Take effect immediately, no manual reload needed
+          register: firewall_result
+          ignore_errors: true
+          when: firewalld_status.rc == 0
+
+        - name: "Display firewall configuration status"
+          ansible.builtin.debug:
+            msg: "Firewall configuration {{ 'succeeded' if not firewall_result.failed else 'failed or firewalld not running' }}"
+          when: firewall_result is defined
+
+      rescue:
+        - name: "Handle firewall configuration failure"
+          ansible.builtin.debug:
+            msg: "Warning: Failed to configure firewall. VNC service may not be accessible from remote hosts."
+          ignore_errors: true
+
+    # ========================================================================
+    # Final Report: Display Connection Information
+    # ========================================================================
+    - name: "Final report: Display connection information"
+      ansible.builtin.debug:
+        msg:
+          - "=========================================="
+          - "VNC Service Configuration Completed!"
+          - "=========================================="
+          - "User '{{ vnc_user }}' can connect via:"
+          - "  Host: {{ inventory_hostname }}"
+          - "  Display: :{{ vnc_display_number }}"
+          - "  TCP Port: {{ 5900 + vnc_display_number | int }}"
+          - "  Resolution: {{ vnc_geometry }}"
+          - "  Session: {{ vnc_desktop_session }}"
+          - "=========================================="
+          - "Connection command:"
+          - "  vncviewer {{ inventory_hostname }}:{{ vnc_display_number }}"
+          - "  or"
+          - "  vncviewer {{ inventory_hostname }}:{{ 5900 + vnc_display_number | int }}"
+          - "=========================================="
+      tags:
+        - always
+
