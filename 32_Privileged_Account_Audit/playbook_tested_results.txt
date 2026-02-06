@@ -1,0 +1,142 @@
+[root@aap25 32_Privileged_Account_Audit]# ansible-playbook privileged_account_audit_site.yml -i inventory
+
+PLAY [Play 1: Privileged Account and Sudo Security Audit] **************************************************************************************************************
+
+TASK [Gathering Facts] *************************************************************************************************************************************************
+ok: [Test-RHEL-7.9-3]
+
+TASK [Validate OS compatibility] ***************************************************************************************************************************************
+ok: [Test-RHEL-7.9-3] => {
+    "changed": false,
+    "msg": "OS compatibility check passed: RedHat 7"
+}
+
+TASK [Display OS information] ******************************************************************************************************************************************
+ok: [Test-RHEL-7.9-3] => {
+    "msg": [
+        "OS Distribution: RedHat",
+        "OS Version: 7.9",
+        "OS Major Version: 7",
+        "Hostname: test-rhel-7"
+    ]
+}
+
+TASK [Check for non-root users with UID 0 (rogue root users)] **********************************************************************************************************
+ok: [Test-RHEL-7.9-3]
+
+TASK [Count rogue root users] ******************************************************************************************************************************************
+ok: [Test-RHEL-7.9-3]
+
+TASK [Display rogue root users detection status] ***********************************************************************************************************************
+ok: [Test-RHEL-7.9-3] => {
+    "msg": [
+        "Rogue UID 0 user detection completed",
+        "Rogue UID 0 users found: 0",
+        "No rogue UID 0 users found.",
+        "Users: []"
+    ]
+}
+
+TASK [Audit sudoers files for NOPASSWD entries] ************************************************************************************************************************
+ok: [Test-RHEL-7.9-3]
+
+TASK [Count NOPASSWD entries] ******************************************************************************************************************************************
+ok: [Test-RHEL-7.9-3]
+
+TASK [Display NOPASSWD entries detection status] ***********************************************************************************************************************
+ok: [Test-RHEL-7.9-3] => {
+    "msg": [
+        "Sudo NOPASSWD entries audit completed",
+        "NOPASSWD entries found: 1",
+        "WARNING: Sudo NOPASSWD entries detected. Review for security implications."
+    ]
+}
+
+TASK [Identify accounts with empty passwords] **************************************************************************************************************************
+ok: [Test-RHEL-7.9-3]
+
+TASK [Count empty password accounts] ***********************************************************************************************************************************
+ok: [Test-RHEL-7.9-3]
+
+TASK [Display empty password accounts detection status] ****************************************************************************************************************
+ok: [Test-RHEL-7.9-3] => {
+    "msg": [
+        "Empty password accounts detection completed",
+        "Empty password accounts found: 0",
+        "No accounts with empty passwords found.",
+        "Accounts: []"
+    ]
+}
+
+TASK [Task 4: Generate audit summary] **********************************************************************************************************************************
+ok: [Test-RHEL-7.9-3] => {
+    "msg": [
+        "==========================================",
+        "Security Audit Summary",
+        "==========================================",
+        "Host: test-rhel-7",
+        "Rogue UID 0 Users: 0",
+        "Users: []",
+        "Empty Password Accounts: 0",
+        "Accounts: []",
+        "Sudo Without Password Entries: 1",
+        "Entries: ['/etc/sudoers:# %wheel\\tALL=(ALL)\\tNOPASSWD: ALL']",
+        "=========================================="
+    ]
+}
+
+TASK [Check for critical security issues] ******************************************************************************************************************************
+skipping: [Test-RHEL-7.9-3]
+
+TASK [Prepare comprehensive security audit report] *********************************************************************************************************************
+ok: [Test-RHEL-7.9-3]
+
+TASK [Save security audit report to JSON file] *************************************************************************************************************************
+changed: [Test-RHEL-7.9-3]
+
+TASK [Display report file creation status] *****************************************************************************************************************************
+ok: [Test-RHEL-7.9-3] => {
+    "msg": [
+        "Security audit report saved successfully",
+        "Report location: /tmp/privileged_account_audit_test-rhel-7.json",
+        "Report format: JSON"
+    ]
+}
+
+TASK [Ensure reports directory exists on control node] *****************************************************************************************************************
+changed: [Test-RHEL-7.9-3 -> localhost]
+
+TASK [Fetch report file to control node] *******************************************************************************************************************************
+changed: [Test-RHEL-7.9-3]
+
+TASK [Display report fetch status] *************************************************************************************************************************************
+ok: [Test-RHEL-7.9-3] => {
+    "msg": [
+        "Report fetch completed",
+        "Report location on control node: ./reports/privileged_account_audit_test-rhel-7.json"
+    ]
+}
+
+TASK [Final report: Display summary] ***********************************************************************************************************************************
+ok: [Test-RHEL-7.9-3] => {
+    "msg": [
+        "==========================================",
+        "Privileged Account Security Audit Summary",
+        "==========================================",
+        "Host: test-rhel-7",
+        "OS: RedHat 7.9",
+        "Rogue UID 0 Users: 0",
+        "Empty Password Accounts: 0",
+        "Sudo NOPASSWD Entries: 1",
+        "Total Critical Issues: 0",
+        "Security Status: WARNING",
+        "Audit Completed: Yes",
+        "Report File: /tmp/privileged_account_audit_test-rhel-7.json",
+        "Report Location (Control Node): ./reports/privileged_account_audit_test-rhel-7.json",
+        "WARNING: Review sudo NOPASSWD entries for security implications.",
+        "=========================================="
+    ]
+}
+
+PLAY RECAP *************************************************************************************************************************************************************
+Test-RHEL-7.9-3            : ok=20   changed=3    unreachable=0    failed=0    skipped=1    rescued=0    ignored=0

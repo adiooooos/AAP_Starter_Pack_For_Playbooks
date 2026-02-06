@@ -1,0 +1,335 @@
+# ============================================================================
+# Playbook: Privileged Account and Sudo Security Audit
+# ============================================================================
+#
+# Description:
+#   This playbook automates security baseline auditing for privileged accounts
+#   and sudo configurations on RHEL/CentOS systems. It performs the following tasks:
+#   1. Validates OS compatibility and prerequisites
+#   2. Checks for non-root users with UID 0 (rogue root users)
+#   3. Audits sudoers files for NOPASSWD entries
+#   4. Identifies accounts with empty passwords
+#   5. Generates comprehensive security audit reports
+#   6. Saves reports to local files for further analysis
+#
+#   This playbook is designed for production environments and focuses on
+#   investigation and reporting only. It does not modify system state or
+#   remove users, allowing administrators to make informed decisions about
+#   remediation.
+#
+# Author: GCG AAP SSA Team + v3.01 20260117
+#
+# License:
+#   📜 License Type: End User License Agreement (EULA)
+#   🔒 Authorization: Subscription-based License
+#
+# ============================================================================
+
+---
+# ============================================================================
+# Play 1: Privileged Account and Sudo Security Audit
+# ============================================================================
+- name: "Play 1: Privileged Account and Sudo Security Audit"
+  hosts: all
+  become: true
+  gather_facts: true
+
+  vars:
+    # --- Core Configuration Variables ---
+    # Report file path on target host
+    report_path: "/tmp/privileged_account_audit_{{ ansible_hostname }}.json"
+    
+    # Report collection destination on control node
+    report_dest_path: "./reports/"
+    
+    # Optional: Fail playbook if critical issues are found
+    fail_on_critical: false
+
+  tasks:
+    # ========================================================================
+    # OS Compatibility Validation
+    # ========================================================================
+    - name: "Validate OS compatibility"
+      ansible.builtin.assert:
+        that:
+          - ansible_distribution in ["RedHat", "CentOS"]
+          - ansible_distribution_major_version in ["7", "8", "9"]
+        fail_msg: "Unsupported operating system. This playbook is not available for the current OS. Supported: RHEL/CentOS 7/8/9"
+        success_msg: "OS compatibility check passed: {{ ansible_distribution }} {{ ansible_distribution_major_version }}"
+      tags:
+        - validation
+        - always
+
+    - name: "Display OS information"
+      ansible.builtin.debug:
+        msg:
+          - "OS Distribution: {{ ansible_distribution }}"
+          - "OS Version: {{ ansible_distribution_version }}"
+          - "OS Major Version: {{ ansible_distribution_major_version }}"
+          - "Hostname: {{ ansible_hostname }}"
+      tags:
+        - validation
+        - debug
+
+    # ========================================================================
+    # Task 1: Check for Non-Root Users with UID 0
+    # ========================================================================
+    - name: "Task 1: Check for non-root users with UID 0"
+      block:
+        - name: "Check for non-root users with UID 0 (rogue root users)"
+          ansible.builtin.shell: "awk -F: '$3 == 0 && $1 != \"root\" {print $1}' /etc/passwd"
+          register: rogue_root_users
+          changed_when: false
+          failed_when: false
+
+        - name: "Count rogue root users"
+          ansible.builtin.set_fact:
+            rogue_root_users_count: "{{ rogue_root_users.stdout_lines | default([]) | length }}"
+          when: rogue_root_users is defined
+
+        - name: "Display rogue root users detection status"
+          ansible.builtin.debug:
+            msg:
+              - "Rogue UID 0 user detection completed"
+              - "Rogue UID 0 users found: {{ rogue_root_users_count | default(0) | int }}"
+              - "{{ 'CRITICAL: Non-root users with UID 0 detected!' if (rogue_root_users_count | default(0) | int > 0) else 'No rogue UID 0 users found.' }}"
+              - "Users: {{ rogue_root_users.stdout_lines | default([]) if (rogue_root_users is defined) else [] }}"
+          when: rogue_root_users is defined
+
+      rescue:
+        - name: "Handle rogue root users detection failure"
+          ansible.builtin.debug:
+            msg: "Warning: Failed to detect rogue UID 0 users. Investigation will continue with available data."
+          ignore_errors: true
+        - name: "Set empty rogue root users on error"
+          ansible.builtin.set_fact:
+            rogue_root_users:
+              stdout: ""
+              stdout_lines: []
+            rogue_root_users_count: 0
+
+    # ========================================================================
+    # Task 2: Audit Sudoers Files for NOPASSWD Entries
+    # ========================================================================
+    - name: "Task 2: Audit sudoers files for NOPASSWD entries"
+      block:
+        - name: "Audit sudoers files for NOPASSWD entries"
+          ansible.builtin.shell: "grep -r \"NOPASSWD\" /etc/sudoers /etc/sudoers.d/ 2>/dev/null || true"
+          register: sudo_nopasswd_entries
+          changed_when: false
+          failed_when: false
+
+        - name: "Count NOPASSWD entries"
+          ansible.builtin.set_fact:
+            sudo_nopasswd_count: "{{ sudo_nopasswd_entries.stdout_lines | default([]) | length }}"
+          when: sudo_nopasswd_entries is defined
+
+        - name: "Display NOPASSWD entries detection status"
+          ansible.builtin.debug:
+            msg:
+              - "Sudo NOPASSWD entries audit completed"
+              - "NOPASSWD entries found: {{ sudo_nopasswd_count | default(0) | int }}"
+              - "{{ 'WARNING: Sudo NOPASSWD entries detected. Review for security implications.' if (sudo_nopasswd_count | default(0) | int > 0) else 'No NOPASSWD entries found in sudoers files.' }}"
+          when: sudo_nopasswd_entries is defined
+
+      rescue:
+        - name: "Handle NOPASSWD entries detection failure"
+          ansible.builtin.debug:
+            msg: "Warning: Failed to audit sudoers files for NOPASSWD entries. Investigation will continue with available data."
+          ignore_errors: true
+        - name: "Set empty NOPASSWD entries on error"
+          ansible.builtin.set_fact:
+            sudo_nopasswd_entries:
+              stdout: ""
+              stdout_lines: []
+            sudo_nopasswd_count: 0
+
+    # ========================================================================
+    # Task 3: Identify Accounts with Empty Passwords
+    # ========================================================================
+    - name: "Task 3: Identify accounts with empty passwords"
+      block:
+        - name: "Identify accounts with empty passwords"
+          ansible.builtin.shell: "awk -F: '($2 == \"\") {print $1}' /etc/shadow"
+          register: empty_passwords
+          changed_when: false
+          failed_when: false
+
+        - name: "Count empty password accounts"
+          ansible.builtin.set_fact:
+            empty_passwords_count: "{{ empty_passwords.stdout_lines | default([]) | length }}"
+          when: empty_passwords is defined
+
+        - name: "Display empty password accounts detection status"
+          ansible.builtin.debug:
+            msg:
+              - "Empty password accounts detection completed"
+              - "Empty password accounts found: {{ empty_passwords_count | default(0) | int }}"
+              - "{{ 'CRITICAL: Accounts with empty passwords detected!' if (empty_passwords_count | default(0) | int > 0) else 'No accounts with empty passwords found.' }}"
+              - "Accounts: {{ empty_passwords.stdout_lines | default([]) if (empty_passwords is defined) else [] }}"
+          when: empty_passwords is defined
+
+      rescue:
+        - name: "Handle empty password accounts detection failure"
+          ansible.builtin.debug:
+            msg: "Warning: Failed to detect accounts with empty passwords. Investigation will continue with available data."
+          ignore_errors: true
+        - name: "Set empty password accounts on error"
+          ansible.builtin.set_fact:
+            empty_passwords:
+              stdout: ""
+              stdout_lines: []
+            empty_passwords_count: 0
+
+    # ========================================================================
+    # Task 4: Generate Audit Summary
+    # ========================================================================
+    - name: "Task 4: Generate audit summary"
+      ansible.builtin.debug:
+        msg:
+          - "=========================================="
+          - "Security Audit Summary"
+          - "=========================================="
+          - "Host: {{ ansible_hostname }}"
+          - "Rogue UID 0 Users: {{ rogue_root_users_count | default(0) | int }}"
+          - "Users: {{ rogue_root_users.stdout_lines | default([]) if (rogue_root_users is defined) else [] }}"
+          - "Empty Password Accounts: {{ empty_passwords_count | default(0) | int }}"
+          - "Accounts: {{ empty_passwords.stdout_lines | default([]) if (empty_passwords is defined) else [] }}"
+          - "Sudo Without Password Entries: {{ sudo_nopasswd_count | default(0) | int }}"
+          - "Entries: {{ sudo_nopasswd_entries.stdout_lines | default([]) if (sudo_nopasswd_entries is defined) else [] }}"
+          - "=========================================="
+      tags:
+        - report
+        - always
+
+    # ========================================================================
+    # Task 5: Optional - Fail if Critical Issues Found
+    # ========================================================================
+    - name: "Task 5: Optional - Fail if critical issues found"
+      block:
+        - name: "Check for critical security issues"
+          ansible.builtin.assert:
+            that:
+              - (rogue_root_users_count | default(0) | int) == 0
+              - (empty_passwords_count | default(0) | int) == 0
+            fail_msg: "CRITICAL: Security issues detected! Rogue UID 0 users: {{ rogue_root_users_count | default(0) | int }}, Empty password accounts: {{ empty_passwords_count | default(0) | int }}"
+            success_msg: "No critical security issues detected."
+          when: fail_on_critical | bool
+
+      rescue:
+        - name: "Handle critical issues failure"
+          ansible.builtin.debug:
+            msg: "Critical security issues detected. Playbook will continue as fail_on_critical is set to false."
+          when: not (fail_on_critical | bool)
+          ignore_errors: true
+
+    # ========================================================================
+    # Task 6: Save Report to Local File
+    # ========================================================================
+    - name: "Task 6: Save report to local file"
+      block:
+        - name: "Prepare comprehensive security audit report"
+          ansible.builtin.set_fact:
+            audit_report:
+              hostname: "{{ ansible_hostname }}"
+              os_distribution: "{{ ansible_distribution }}"
+              os_version: "{{ ansible_distribution_version }}"
+              audit_timestamp: "{{ ansible_date_time.iso8601 }}"
+              rogue_uid0_users:
+                count: "{{ rogue_root_users_count | default(0) | int }}"
+                users: "{{ rogue_root_users.stdout_lines | default([]) if (rogue_root_users is defined) else [] }}"
+                severity: "CRITICAL"
+              empty_password_accounts:
+                count: "{{ empty_passwords_count | default(0) | int }}"
+                accounts: "{{ empty_passwords.stdout_lines | default([]) if (empty_passwords is defined) else [] }}"
+                severity: "CRITICAL"
+              sudo_nopasswd_entries:
+                count: "{{ sudo_nopasswd_count | default(0) | int }}"
+                entries: "{{ sudo_nopasswd_entries.stdout_lines | default([]) if (sudo_nopasswd_entries is defined) else [] }}"
+                severity: "WARNING"
+              audit_summary:
+                total_critical_issues: "{{ (rogue_root_users_count | default(0) | int) + (empty_passwords_count | default(0) | int) }}"
+                total_warnings: "{{ sudo_nopasswd_count | default(0) | int }}"
+                security_status: "{{ 'CRITICAL' if ((rogue_root_users_count | default(0) | int) > 0 or (empty_passwords_count | default(0) | int) > 0) else ('WARNING' if (sudo_nopasswd_count | default(0) | int > 0) else 'HEALTHY') }}"
+                recommendation: "{{ 'CRITICAL: Immediate action required. Review and remediate rogue UID 0 users and empty password accounts.' if ((rogue_root_users_count | default(0) | int) > 0 or (empty_passwords_count | default(0) | int) > 0) else ('WARNING: Review sudo NOPASSWD entries for security implications.' if (sudo_nopasswd_count | default(0) | int > 0) else 'No security issues detected. System is compliant.') }}"
+
+        - name: "Save security audit report to JSON file"
+          ansible.builtin.copy:
+            content: "{{ audit_report | to_nice_json }}"
+            dest: "{{ report_path }}"
+            mode: '0644'
+          when: audit_report is defined and report_path is defined
+
+        - name: "Display report file creation status"
+          ansible.builtin.debug:
+            msg:
+              - "Security audit report saved successfully"
+              - "Report location: {{ report_path }}"
+              - "Report format: JSON"
+          when: report_path is defined
+
+      rescue:
+        - name: "Handle report file creation failure"
+          ansible.builtin.debug:
+            msg: "Warning: Failed to save security audit report to file. Investigation data may still be available in Ansible output."
+          ignore_errors: true
+
+    # ========================================================================
+    # Task 7: Fetch Report to Control Node
+    # ========================================================================
+    - name: "Task 7: Fetch report to control node"
+      block:
+        - name: "Ensure reports directory exists on control node"
+          ansible.builtin.file:
+            path: "{{ report_dest_path }}"
+            state: directory
+            mode: '0755'
+          delegate_to: localhost
+          run_once: true
+          ignore_errors: true
+
+        - name: "Fetch report file to control node"
+          ansible.builtin.fetch:
+            src: "{{ report_path }}"
+            dest: "{{ report_dest_path }}"
+            flat: yes
+          when: report_path is defined
+          ignore_errors: true
+
+        - name: "Display report fetch status"
+          ansible.builtin.debug:
+            msg:
+              - "Report fetch completed"
+              - "Report location on control node: {{ report_dest_path }}{{ report_path | basename }}"
+          when: report_path is defined
+
+      rescue:
+        - name: "Handle report fetch failure"
+          ansible.builtin.debug:
+            msg: "Warning: Failed to fetch report to control node. Report is still available on target host at {{ report_path }}"
+          ignore_errors: true
+
+    # ========================================================================
+    # Final Report: Display Summary
+    # ========================================================================
+    - name: "Final report: Display summary"
+      ansible.builtin.debug:
+        msg:
+          - "=========================================="
+          - "Privileged Account Security Audit Summary"
+          - "=========================================="
+          - "Host: {{ ansible_hostname }}"
+          - "OS: {{ ansible_distribution }} {{ ansible_distribution_version }}"
+          - "Rogue UID 0 Users: {{ rogue_root_users_count | default(0) | int }}"
+          - "Empty Password Accounts: {{ empty_passwords_count | default(0) | int }}"
+          - "Sudo NOPASSWD Entries: {{ sudo_nopasswd_count | default(0) | int }}"
+          - "Total Critical Issues: {{ (rogue_root_users_count | default(0) | int) + (empty_passwords_count | default(0) | int) }}"
+          - "Security Status: {{ 'CRITICAL' if ((rogue_root_users_count | default(0) | int) > 0 or (empty_passwords_count | default(0) | int) > 0) else ('WARNING' if (sudo_nopasswd_count | default(0) | int > 0) else 'HEALTHY') }}"
+          - "Audit Completed: Yes"
+          - "Report File: {{ report_path }}"
+          - "Report Location (Control Node): {{ report_dest_path }}{{ report_path | basename if report_path is defined else 'N/A' }}"
+          - "{{ 'CRITICAL: Immediate action required. Review and remediate security issues.' if ((rogue_root_users_count | default(0) | int) > 0 or (empty_passwords_count | default(0) | int) > 0) else ('WARNING: Review sudo NOPASSWD entries for security implications.' if (sudo_nopasswd_count | default(0) | int > 0) else 'Status: No security issues detected. System is compliant.') }}"
+          - "=========================================="
+      tags:
+        - always
+
