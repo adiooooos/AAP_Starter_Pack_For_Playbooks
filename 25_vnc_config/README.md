@@ -3,6 +3,8 @@
 ## Overview
 
 This playbook automates the installation and configuration of TigerVNC server on RHEL/CentOS systems. It provides a complete, enterprise-grade solution for deploying remote desktop access across your infrastructure, eliminating manual configuration steps and ensuring consistent, secure VNC deployments.
+### screenshots
+<img width="2031" height="1060" alt="image" src="https://github.com/user-attachments/assets/8f6c7aed-8e93-4fcd-a598-138d7d1d9059" />
 
 ## Features
 
@@ -343,4 +345,5 @@ For issues, questions, or contributions, please refer to the Ansible Automation 
 ---
 
 **Author**: GCG AAP SSA Team + v3.01 20260217
+
 
